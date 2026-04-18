@@ -855,62 +855,81 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 14. Development Roadmap
 
-### Phase 1 — Backend foundation
+> **Status terakhir diupdate:** 2026-04-18
+> **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0
+> **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
 
-- [ ] Init Next.js + pnpm + TypeScript + Tailwind + shadcn/ui
-- [ ] Add brand colors to `tailwind.config.ts` and `globals.css`
-- [ ] Place logo files in `public/`
-- [ ] Setup Neon + Drizzle (`src/db/index.ts`)
-- [ ] Write full schema + `pnpm db:push`
-- [ ] All services (`src/services/`)
-- [ ] Split algorithm with unit tests — both modes + all edge cases
-- [ ] All API routes
-- [ ] Event logging
-- [ ] Manual API test via curl / Postman
+### Phase 1 — Backend foundation ✅ SELESAI
+
+- [x] Init Next.js + pnpm + TypeScript + Tailwind (sudah ada saat project dibuat)
+- [x] Add brand colors ke `globals.css` via `@theme` (Tailwind v4)
+- [x] Logo files di `public/` (`logo.png`, `logo-icon.png`, `favicon.ico`)
+- [x] Setup Neon + Drizzle (`src/db/index.ts`) — menggunakan `drizzle-orm/neon-http`
+- [x] Full schema di `src/db/schema.ts` + applied ke Neon via node script (drizzle-kit push tidak support non-TTY)
+- [x] Semua services (`src/services/`: bill, participant, purchase, item, settlement, event)
+- [x] Split algorithm (`src/algorithms/split.ts`) — kedua mode + semua edge case
+- [x] Semua API routes (`app/api/`: bills, participants, purchases, items, calculate, share)
+- [x] Event logging (fire-and-forget, tidak pernah `await` dari user code)
+- [ ] Unit tests untuk split algorithm — **belum dibuat**
+- [ ] Manual API test via curl / Postman — **belum dilakukan**
 
 **Done when:** Full CRUD works via API. Both split modes correct across all edge cases.
 
 ---
 
-### Phase 2 — UI
+### Phase 2 — UI ✅ SELESAI
 
-- [ ] `Logo` atom using `next/image`
-- [ ] All atoms with brand color application
-- [ ] All molecules including `SplitModeToggle`
-- [ ] All organisms
-- [ ] `BillEditLayout` and `ShareLayout` templates
-- [ ] All custom hooks with SWR
-- [ ] `app/bills/[id]/page.tsx` and `app/page.tsx`
-- [ ] Optimistic UI for all mutations
+- [x] `Logo` atom via `next/image`
+- [x] Semua atoms: Button, Input, CurrencyInput, Avatar, Badge, Spinner, EmptyState, Toast, IconButton, Checkbox, Logo, AdSlot
+- [x] Semua molecules: ParticipantChip, ParticipantSelector, AddParticipantForm, ItemRow, AddItemForm, PurchaseHeader, SettlementRow, BalanceRow, ShareButton, SplitModeToggle, ConfirmDialog
+- [x] Semua organisms: BillHeader, BillSummary, ParticipantList, PurchaseCard, PurchaseList, SettlementResult
+- [x] Templates: `BillEditLayout` dan `ShareLayout`
+- [x] Semua custom hooks: useBill, useBillParticipants, usePurchase, useSettlement, useDeviceId, useToast, useShareLink
+- [x] `app/page.tsx` — landing page dengan CTA "Buat Tagihan Baru" + POST /api/bills + redirect
+- [x] `app/bills/[id]/page.tsx` — halaman edit bill, wire semua organisms + ToastContainer
+- [x] `app/bills/[id]/loading.tsx` — skeleton loading (animated pulse)
+- [ ] `useOptimistic.ts` — **belum dibuat** (hooks saat ini langsung mutate, belum optimistic)
+- [ ] Optimistic UI untuk semua mutations — **belum** (SWR mutate sudah ada, belum optimistic update)
 
 **Done when:** Full bill creation flow end-to-end on mobile.
 
 ---
 
-### Phase 3 — Share & polish
+### Phase 3 — Share & polish 🔄 SEBAGIAN SELESAI
 
-- [ ] `app/s/[token]/page.tsx`
-- [ ] `ShareButton` (Web Share API + clipboard fallback)
-- [ ] All empty states (branded illustrations)
-- [ ] All error states + toasts
-- [ ] Loading skeletons
-- [ ] Mobile audit (390px, 430px)
-- [ ] Favicon from `logo-icon.png`
-- [ ] OG image with logo for link previews
+- [x] `app/s/[token]/page.tsx` — server component, fetch by token, pass serialized BillData ke ShareView
+- [x] `app/s/[token]/ShareView.tsx` — client wrapper (server component tidak bisa passing fungsi ke client component)
+- [x] `ShareButton` (Web Share API + clipboard fallback) — wired di bill page dan share page
+- [x] `ToastContainer` wired ke `app/bills/[id]/page.tsx`
+- [x] Loading skeletons (`app/bills/[id]/loading.tsx`)
+- [x] EmptyState component — dipakai di PurchaseList
+- [x] Build check — `pnpm build` berhasil, 0 TypeScript error, semua routes terdaftar
+- [ ] Mobile audit (390px, 430px) — **belum dilakukan**
+- [ ] Favicon dari `logo-icon.png` (favicon.ico ada tapi belum dicek apakah benar)
+- [ ] OG image dengan logo untuk link previews
 
 **Done when:** Create, fill, share — friend views result on phone. Link preview shows logo.
 
 ---
 
-### Phase 4 — Growth & monetization
+### Phase 4 — Growth & monetization ⏳ BELUM DIMULAI
 
 - [ ] SEO: `generateMetadata()`, branded OG image per bill
-- [ ] Analytics from `events` table
-- [ ] Activate `<AdSlot />` with Google AdSense
+- [ ] Analytics dari tabel `events`
+- [ ] Aktifkan `<AdSlot />` dengan Google AdSense
 - [ ] Rewarded ads → flip `receipt_scan` feature flag
 - [ ] OCR receipt scan
-- [ ] Payment integration (activate `settlements` table)
-- [ ] User accounts (`users` table)
+- [ ] Payment integration (aktifkan tabel `settlements`)
+- [ ] User accounts (tabel `users`)
+
+---
+
+### Yang perlu diselesaikan berikutnya (prioritas)
+
+1. Verifikasi end-to-end flow di browser (buat tagihan → tambah peserta → transaksi → hitung → share → buka link share)
+2. Mobile audit (390px, 430px viewport)
+3. Cek favicon (`public/favicon.ico`) sudah pakai `logo-icon.png`
+4. Unit tests untuk split algorithm
 
 ---
 

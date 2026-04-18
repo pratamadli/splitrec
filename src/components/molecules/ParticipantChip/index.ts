@@ -1,0 +1,1 @@
+export { ParticipantChip } from './ParticipantChip'
