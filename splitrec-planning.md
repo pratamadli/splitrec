@@ -858,6 +858,8 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 > **Status terakhir diupdate:** 2026-04-18
 > **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
+> **Favicon:** `public/favicon.ico` saat ini masih default Next.js 16x16 — perlu di-replace dengan ICO yang di-generate dari `logo-icon.png`.
+> **API verified:** Semua endpoint ditest via curl dan hasilnya benar — item split, equal split, share token, ownership 403 check.
 
 ### Phase 1 — Backend foundation ✅ SELESAI
 
@@ -871,7 +873,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] Semua API routes (`app/api/`: bills, participants, purchases, items, calculate, share)
 - [x] Event logging (fire-and-forget, tidak pernah `await` dari user code)
 - [ ] Unit tests untuk split algorithm — **belum dibuat**
-- [ ] Manual API test via curl / Postman — **belum dilakukan**
+- [x] Manual API test via curl — POST bills, participants, purchases, items, calculate, share, PATCH, DELETE, 403 ownership check semua ✅
 
 **Done when:** Full CRUD works via API. Both split modes correct across all edge cases.
 
@@ -895,7 +897,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ---
 
-### Phase 3 — Share & polish 🔄 SEBAGIAN SELESAI
+### Phase 3 — Share & polish 🔄 HAMPIR SELESAI
 
 - [x] `app/s/[token]/page.tsx` — server component, fetch by token, pass serialized BillData ke ShareView
 - [x] `app/s/[token]/ShareView.tsx` — client wrapper (server component tidak bisa passing fungsi ke client component)
@@ -904,8 +906,9 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] Loading skeletons (`app/bills/[id]/loading.tsx`)
 - [x] EmptyState component — dipakai di PurchaseList
 - [x] Build check — `pnpm build` berhasil, 0 TypeScript error, semua routes terdaftar
-- [ ] Mobile audit (390px, 430px) — **belum dilakukan**
-- [ ] Favicon dari `logo-icon.png` (favicon.ico ada tapi belum dicek apakah benar)
+- [x] End-to-end API verified via curl — item split, equal split, share token, 403 ownership check semua benar
+- [ ] Mobile audit (390px, 430px) — **belum dilakukan** (butuh browser)
+- [ ] Favicon — `public/favicon.ico` adalah default Next.js (16x16, 241 bytes), **perlu di-replace** dengan file dari `logo-icon.png`
 - [ ] OG image dengan logo untuk link previews
 
 **Done when:** Create, fill, share — friend views result on phone. Link preview shows logo.
@@ -926,10 +929,10 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. Verifikasi end-to-end flow di browser (buat tagihan → tambah peserta → transaksi → hitung → share → buka link share)
-2. Mobile audit (390px, 430px viewport)
-3. Cek favicon (`public/favicon.ico`) sudah pakai `logo-icon.png`
-4. Unit tests untuk split algorithm
+1. Verifikasi end-to-end flow di browser secara manual (API sudah ✅, perlu test UI + interaksi)
+2. Fix favicon — replace `public/favicon.ico` dengan versi dari `logo-icon.png` (saat ini masih default Next.js)
+3. Unit tests untuk split algorithm
+4. Mobile audit (390px, 430px) — test di browser DevTools
 
 ---
 
