@@ -1,24 +1,23 @@
-import { eq, inArray } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db } from '@/src/db'
-import { items, itemConsumers, purchases } from '@/src/db/schema'
+import { items, itemConsumers } from '@/src/db/schema'
 
 export async function addItem(
   purchaseId: string,
   name: string,
   price: number,
-  quantity: number,
   note: string | null,
-  consumerIds: string[]
+  consumers: { participantId: string; quantity: number }[]
 ) {
   const [item] = await db
     .insert(items)
-    .values({ purchaseId, name: name.trim(), price: String(price), quantity, note })
+    .values({ purchaseId, name: name.trim(), price: String(price), quantity: 1, note })
     .returning()
 
-  if (consumerIds.length > 0) {
+  if (consumers.length > 0) {
     await db
       .insert(itemConsumers)
-      .values(consumerIds.map((participantId) => ({ itemId: item.id, participantId })))
+      .values(consumers.map(({ participantId, quantity }) => ({ itemId: item.id, participantId, quantity })))
   }
 
   return item
@@ -29,28 +28,29 @@ export async function updateItem(
   data: Partial<{
     name: string
     price: number
-    quantity: number
     note: string | null
-    consumerIds: string[]
+    consumers: { participantId: string; quantity: number }[]
   }>
 ) {
   const set: Record<string, unknown> = {}
   if (data.name !== undefined) set.name = data.name.trim()
   if (data.price !== undefined) set.price = String(data.price)
-  if (data.quantity !== undefined) set.quantity = data.quantity
   if (data.note !== undefined) set.note = data.note
 
-  const [item] = await db.update(items).set(set).where(eq(items.id, id)).returning()
+  if (Object.keys(set).length > 0) {
+    await db.update(items).set(set).where(eq(items.id, id))
+  }
 
-  if (data.consumerIds !== undefined) {
+  if (data.consumers !== undefined) {
     await db.delete(itemConsumers).where(eq(itemConsumers.itemId, id))
-    if (data.consumerIds.length > 0) {
+    if (data.consumers.length > 0) {
       await db
         .insert(itemConsumers)
-        .values(data.consumerIds.map((participantId) => ({ itemId: id, participantId })))
+        .values(data.consumers.map(({ participantId, quantity }) => ({ itemId: id, participantId, quantity })))
     }
   }
 
+  const [item] = await db.select().from(items).where(eq(items.id, id))
   return item
 }
 

@@ -26,7 +26,7 @@ export default function BillPage({ params }: PageProps) {
   const { id } = use(params)
   const { bill, isLoading, mutate, updateTitle, updateSplitMode, deviceId } = useBill(id)
   const { addParticipant, deleteParticipant } = useBillParticipants(id, mutate)
-  const { addPurchase, deletePurchase, addItem, deleteItem } = usePurchase(id, mutate)
+  const { addPurchase, deletePurchase, addItem, updateItem, deleteItem } = usePurchase(id, mutate)
   const [calcResult, setCalcResult] = useState<CalculateResult | null>(null)
   const { calculate, isCalculating } = useSettlement(id, mutate)
   const { toasts, addToast, dismiss } = useToast()
@@ -35,6 +35,11 @@ export default function BillPage({ params }: PageProps) {
   // For /bills/[id], only the creator has this URL — isOwner = deviceId is set.
   // Mutations will 403 server-side if deviceId doesn't match; errors surface via toast.
   const isOwner = !!deviceId
+
+  const autoCalculate = async () => {
+    const result = await calculate()
+    if (result) setCalcResult(result)
+  }
 
   const handleCalculate = async () => {
     const result = await calculate()
@@ -49,6 +54,7 @@ export default function BillPage({ params }: PageProps) {
   const handleAddParticipant = async (name: string) => {
     try {
       await addParticipant(name)
+      await autoCalculate()
     } catch {
       addToast('Gagal menambah peserta', 'error')
     }
@@ -57,6 +63,7 @@ export default function BillPage({ params }: PageProps) {
   const handleDeleteParticipant = async (participantId: string) => {
     try {
       await deleteParticipant(participantId)
+      await autoCalculate()
     } catch {
       addToast('Gagal menghapus peserta', 'error')
     }
@@ -65,6 +72,7 @@ export default function BillPage({ params }: PageProps) {
   const handleAddPurchase = async (data: { title: string; paidBy: string; totalAmount: number }) => {
     try {
       await addPurchase(data)
+      await autoCalculate()
     } catch {
       addToast('Gagal menambah transaksi', 'error')
     }
@@ -73,6 +81,7 @@ export default function BillPage({ params }: PageProps) {
   const handleDeletePurchase = async (purchaseId: string) => {
     try {
       await deletePurchase(purchaseId)
+      await autoCalculate()
     } catch {
       addToast('Gagal menghapus transaksi', 'error')
     }
@@ -80,18 +89,32 @@ export default function BillPage({ params }: PageProps) {
 
   const handleAddItem = async (
     purchaseId: string,
-    data: { name: string; price: number; quantity: number; note: string | null; consumerIds: string[] }
+    data: { name: string; price: number; note: string | null; consumers: { participantId: string; quantity: number }[] }
   ) => {
     try {
       await addItem(purchaseId, data)
+      await autoCalculate()
     } catch {
       addToast('Gagal menambah item', 'error')
+    }
+  }
+
+  const handleEditItem = async (
+    itemId: string,
+    data: { name: string; price: number; note: string | null; consumers: { participantId: string; quantity: number }[] }
+  ) => {
+    try {
+      await updateItem(itemId, data)
+      await autoCalculate()
+    } catch {
+      addToast('Gagal mengupdate item', 'error')
     }
   }
 
   const handleDeleteItem = async (itemId: string) => {
     try {
       await deleteItem(itemId)
+      await autoCalculate()
     } catch {
       addToast('Gagal menghapus item', 'error')
     }
@@ -140,6 +163,7 @@ export default function BillPage({ params }: PageProps) {
             onAddPurchase={handleAddPurchase}
             onDeletePurchase={handleDeletePurchase}
             onAddItem={handleAddItem}
+            onEditItem={handleEditItem}
             onDeleteItem={handleDeleteItem}
           />
         }

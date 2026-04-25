@@ -13,6 +13,11 @@ interface CurrencyInputProps {
   placeholder?: string
 }
 
+function formatWithDots(value: number): string {
+  if (value === 0) return ''
+  return value.toLocaleString('id-ID')
+}
+
 export function CurrencyInput({
   value,
   onChange,
@@ -22,11 +27,29 @@ export function CurrencyInput({
   disabled,
   placeholder = '0',
 }: CurrencyInputProps) {
+  const [rawInput, setRawInput] = useState('')
   const [focused, setFocused] = useState(false)
 
-  const display = focused
-    ? value === 0 ? '' : String(value)
-    : value === 0 ? '' : value.toLocaleString('id-ID')
+  const displayValue = focused ? rawInput : formatWithDots(value)
+
+  const handleFocus = () => {
+    setFocused(true)
+    setRawInput(value === 0 ? '' : String(value))
+  }
+
+  const handleBlur = () => {
+    setFocused(false)
+    const digits = rawInput.replace(/\D/g, '')
+    const n = digits ? parseInt(digits, 10) : 0
+    onChange(n)
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '')
+    setRawInput(digits)
+    const n = digits ? parseInt(digits, 10) : 0
+    onChange(n)
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -42,19 +65,15 @@ export function CurrencyInput({
       >
         <span className="text-sm text-brand-gray shrink-0">Rp</span>
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
-          value={focused ? (value === 0 ? '' : value) : undefined}
-          defaultValue={!focused ? undefined : undefined}
+          value={displayValue}
           placeholder={placeholder}
           disabled={disabled}
           className="flex-1 bg-transparent text-sm focus:outline-none disabled:cursor-not-allowed"
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onChange={(e) => {
-            const n = parseFloat(e.target.value)
-            onChange(isNaN(n) ? 0 : n)
-          }}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onChange={handleChange}
         />
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}

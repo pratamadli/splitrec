@@ -2,9 +2,24 @@ import { notFound } from 'next/navigation'
 import { getBillByToken } from '@/src/services/bill.service'
 import { ShareView } from './ShareView'
 import type { BillData } from '@/src/types/bill.types'
+import type { Metadata } from 'next'
 
 interface PageProps {
   params: Promise<{ token: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { token } = await params
+  const raw = await getBillByToken(token)
+  if (!raw) return {}
+  const title = `${raw.title} — Splitrec`
+  const description = `Lihat hasil pembagian tagihan "${raw.title}" di Splitrec.`
+  return {
+    title,
+    description,
+    openGraph: { title, description, images: [{ url: '/logo.png' }] },
+    twitter: { card: 'summary_large_image', title, description, images: ['/logo.png'] },
+  }
 }
 
 export default async function SharePage({ params }: PageProps) {
@@ -34,6 +49,7 @@ export default async function SharePage({ params }: PageProps) {
         note: item.note,
         consumers: item.consumers.map((c) => ({
           participant: { id: c.participant.id, name: c.participant.name },
+          quantity: c.quantity,
         })),
       })),
     })),

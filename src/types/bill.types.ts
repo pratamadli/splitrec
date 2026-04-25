@@ -11,7 +11,7 @@ export interface ItemData {
   price: number
   quantity: number
   note: string | null
-  consumers: { participant: ParticipantData }[]
+  consumers: { participant: ParticipantData; quantity: number }[]
 }
 
 export interface PurchaseData {

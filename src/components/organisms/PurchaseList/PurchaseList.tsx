@@ -1,22 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PurchaseCard } from '@/src/components/organisms/PurchaseCard'
 import { Button } from '@/src/components/atoms/Button'
 import { Input } from '@/src/components/atoms/Input'
 import { CurrencyInput } from '@/src/components/atoms/CurrencyInput'
 import { EmptyState } from '@/src/components/atoms/EmptyState'
-import type { BillData, ParticipantData } from '@/src/types/bill.types'
+import type { BillData } from '@/src/types/bill.types'
+
+type ItemConsumer = { participantId: string; quantity: number }
+type ItemFormData = { name: string; price: number; note: string | null; consumers: ItemConsumer[] }
 
 interface PurchaseListProps {
   bill: BillData
   isOwner: boolean
   onAddPurchase: (data: { title: string; paidBy: string; totalAmount: number }) => Promise<void>
   onDeletePurchase: (id: string) => Promise<void>
-  onAddItem: (
-    purchaseId: string,
-    data: { name: string; price: number; quantity: number; note: string | null; consumerIds: string[] }
-  ) => Promise<void>
+  onAddItem: (purchaseId: string, data: ItemFormData) => Promise<void>
+  onEditItem: (itemId: string, data: ItemFormData) => Promise<void>
   onDeleteItem: (itemId: string) => Promise<void>
 }
 
@@ -26,6 +27,7 @@ export function PurchaseList({
   onAddPurchase,
   onDeletePurchase,
   onAddItem,
+  onEditItem,
   onDeleteItem,
 }: PurchaseListProps) {
   const [adding, setAdding] = useState(false)
@@ -33,6 +35,14 @@ export function PurchaseList({
   const [paidBy, setPaidBy] = useState(bill.participants[0]?.id ?? '')
   const [totalAmount, setTotalAmount] = useState(0)
   const [loading, setLoading] = useState(false)
+
+  // Sync paidBy saat participants berubah — state tidak auto-update dari prop
+  useEffect(() => {
+    const ids = bill.participants.map((p) => p.id)
+    if (!paidBy || !ids.includes(paidBy)) {
+      setPaidBy(bill.participants[0]?.id ?? '')
+    }
+  }, [bill.participants, paidBy])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,6 +78,7 @@ export function PurchaseList({
           splitMode={bill.splitMode as 'equal' | 'item'}
           onDeletePurchase={onDeletePurchase}
           onAddItem={onAddItem}
+          onEditItem={onEditItem}
           onDeleteItem={onDeleteItem}
         />
       ))}

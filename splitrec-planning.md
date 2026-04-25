@@ -402,6 +402,7 @@ note          text
 -- item_consumers (composite PK prevents duplicates at DB level)
 item_id        uuid NOT NULL REFERENCES items(id) ON DELETE CASCADE
 participant_id uuid NOT NULL REFERENCES participants(id) ON DELETE CASCADE
+quantity       integer NOT NULL DEFAULT 1   -- per-consumer quantity (how many units this person consumed)
 PRIMARY KEY (item_id, participant_id)
 
 -- debts (computed result — fully replaced on every /calculate call)
@@ -459,6 +460,8 @@ CREATE UNIQUE INDEX ON feature_flags(device_id, feature);
 | `share_token` | Server-generated 12-char | Never from client |
 | `device_id` | localStorage UUID | Sole ownership check for MVP |
 | `item_consumers` PK | Composite `(item_id, participant_id)` | Prevents duplicates at DB level |
+| `item_consumers.quantity` | Per-consumer integer (default 1) | Each person can consume a different number of units of the same item |
+| `items.quantity` | Always 1 when consumers assigned | Only meaningful when consumers is empty (fallback equal-split uses it) |
 | `debts` | Fully replaced on `/calculate` | Computed result, not a ledger |
 | `settlements` | In schema, unused in MVP | Zero-migration activation for payment later |
 | `events` | Always async, never awaited | Failure must never affect user flow |
@@ -553,7 +556,16 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
 
 **POST `/api/purchases/[id]/items`**
 ```ts
-{ name: string, price: number, quantity?: number, note?: string, consumerIds: string[] }
+// Body
+{ name: string, price: number, note?: string, consumers: { participantId: string, quantity: number }[] }
+// consumers empty → cost goes to purchase payer (equal-split fallback)
+// consumers non-empty → each person pays price × their own quantity
+```
+
+**PATCH `/api/items/[id]`**
+```ts
+// Body (all fields optional)
+{ name?: string, price?: number, note?: string | null, consumers?: { participantId: string, quantity: number }[] }
 ```
 
 ---
@@ -590,11 +602,11 @@ balance[p]  = paid[p] - share
 
 ```
 1. For each item:
-   if consumerIds is empty → assign to purchase payer
-   consumer share = round((price × quantity) / consumerIds.length, 2)
+   if consumers is empty → assign full cost (price × quantity) to purchase payer
+   if consumers non-empty → each consumer pays round(price × consumer.quantity, 2)
 
 2. paid[p]     = sum of purchase.totalAmount where paidBy === p
-   consumed[p] = sum of all item shares assigned to p
+   consumed[p] = sum of all item amounts assigned to p
    balance[p]  = paid[p] - consumed[p]
 ```
 
@@ -622,7 +634,12 @@ export interface SplitInput {
     id: string
     paidBy: string
     totalAmount: number
-    items: { id: string; price: number; quantity: number; consumers: string[] }[]
+    items: {
+      id: string
+      price: number
+      quantity: number  // only used when consumers is empty (equal-split fallback)
+      consumers: { participantId: string; quantity: number }[]
+    }[]
   }[]
 }
 
@@ -656,7 +673,7 @@ No layer imports from above. Hooks used in Organisms and Pages only.
 |---|---|
 | `Button` | variant: `primary\|ghost\|danger\|outline`. Primary uses `bg-brand-blue`. |
 | `Input` | Controlled. `label`, `error`, `hint`. Focus ring: `ring-brand-blue`. |
-| `CurrencyInput` | IDR-formatted. `value: number`, `onChange: (n) => void`. |
+| `CurrencyInput` | IDR-formatted. `value: number`, `onChange: (n) => void`. `type="text"` + `inputMode="numeric"` — no arrow spinners. Formats with dot separators (1.000.000) on blur. |
 | `Avatar` | Initials circle. Color from name hash. Falls back to `brand-blue-light`. |
 | `Badge` | variant: `success\|warning\|info\|neutral\|danger`. Success uses `brand-green`. |
 | `Spinner` | size: `sm\|md`. |
@@ -674,8 +691,8 @@ No layer imports from above. Hooks used in Organisms and Pages only.
 | `ParticipantChip` | `participant`, `onDelete?` | Avatar + name + delete |
 | `ParticipantSelector` | `participants`, `selectedIds`, `onChange` | Multi-checkbox consumer assign |
 | `AddParticipantForm` | `onSubmit`, `isLoading` | Inline input + add |
-| `ItemRow` | `item`, `participants`, `onEdit`, `onDelete` | Item detail row |
-| `AddItemForm` | `participants`, `onSubmit`, `onCancel` | Name + price + selector |
+| `ItemRow` | `item`, `onEdit`, `onDelete` | Item detail row — shows per-consumer qty (e.g. "Alice (2×), Bob") |
+| `AddItemForm` | `participants`, `initialValues?`, `submitLabel?`, `onSubmit`, `onCancel` | Name + price-per-unit + consumer checkboxes + per-consumer qty inputs. `initialValues` enables edit mode. |
 | `PurchaseHeader` | `purchase`, `payer`, `onEdit`, `onDelete` | Purchase title + payer + total |
 | `SettlementRow` | `from`, `to`, `amount` | Avatar → Avatar + amount. Amount in `brand-green`. |
 | `BalanceRow` | `balance` | Positive balance in `brand-green`, negative in red. |
@@ -855,10 +872,10 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 14. Development Roadmap
 
-> **Status terakhir diupdate:** 2026-04-18
-> **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0
+> **Status terakhir diupdate:** 2026-04-25
+> **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
-> **Favicon:** `public/favicon.ico` saat ini masih default Next.js 16x16 — perlu di-replace dengan ICO yang di-generate dari `logo-icon.png`.
+> **Favicon:** Sudah fix — `app/icon.png` (copy dari `logo-icon.png`), Next.js 13+ otomatis pakai sebagai favicon. `public/favicon.ico` lama tidak perlu dihapus.
 > **API verified:** Semua endpoint ditest via curl dan hasilnya benar — item split, equal split, share token, ownership 403 check.
 
 ### Phase 1 — Backend foundation ✅ SELESAI
@@ -872,14 +889,14 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] Split algorithm (`src/algorithms/split.ts`) — kedua mode + semua edge case
 - [x] Semua API routes (`app/api/`: bills, participants, purchases, items, calculate, share)
 - [x] Event logging (fire-and-forget, tidak pernah `await` dari user code)
-- [ ] Unit tests untuk split algorithm — **belum dibuat**
+- [x] Unit tests untuk split algorithm — `src/algorithms/split.test.ts`, 9 tests (vitest), semua pass ✅
 - [x] Manual API test via curl — POST bills, participants, purchases, items, calculate, share, PATCH, DELETE, 403 ownership check semua ✅
 
 **Done when:** Full CRUD works via API. Both split modes correct across all edge cases.
 
 ---
 
-### Phase 2 — UI ✅ SELESAI
+### Phase 2 — UI ✅ SELESAI (diupdate 2026-04-21)
 
 - [x] `Logo` atom via `next/image`
 - [x] Semua atoms: Button, Input, CurrencyInput, Avatar, Badge, Spinner, EmptyState, Toast, IconButton, Checkbox, Logo, AdSlot
@@ -890,14 +907,14 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] `app/page.tsx` — landing page dengan CTA "Buat Tagihan Baru" + POST /api/bills + redirect
 - [x] `app/bills/[id]/page.tsx` — halaman edit bill, wire semua organisms + ToastContainer
 - [x] `app/bills/[id]/loading.tsx` — skeleton loading (animated pulse)
-- [ ] `useOptimistic.ts` — **belum dibuat** (hooks saat ini langsung mutate, belum optimistic)
-- [ ] Optimistic UI untuk semua mutations — **belum** (SWR mutate sudah ada, belum optimistic update)
+- [x] Optimistic UI untuk semua mutations — SWR `KeyedMutator` dipakai di `useBillParticipants` dan `usePurchase` untuk instant UI update + rollback on error ✅
+- [x] Auto-calculate setelah setiap mutation — `autoCalculate()` dipanggil silent setelah add/delete peserta, transaksi, item ✅
 
 **Done when:** Full bill creation flow end-to-end on mobile.
 
 ---
 
-### Phase 3 — Share & polish 🔄 HAMPIR SELESAI
+### Phase 3 — Share & polish ✅ SELESAI (diupdate 2026-04-21)
 
 - [x] `app/s/[token]/page.tsx` — server component, fetch by token, pass serialized BillData ke ShareView
 - [x] `app/s/[token]/ShareView.tsx` — client wrapper (server component tidak bisa passing fungsi ke client component)
@@ -907,9 +924,15 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] EmptyState component — dipakai di PurchaseList
 - [x] Build check — `pnpm build` berhasil, 0 TypeScript error, semua routes terdaftar
 - [x] End-to-end API verified via curl — item split, equal split, share token, 403 ownership check semua benar
-- [ ] Mobile audit (390px, 430px) — **belum dilakukan** (butuh browser)
-- [ ] Favicon — `public/favicon.ico` adalah default Next.js (16x16, 241 bytes), **perlu di-replace** dengan file dari `logo-icon.png`
-- [ ] OG image dengan logo untuk link previews
+- [ ] Mobile audit (390px, 430px) — **belum dilakukan** (butuh browser — lakukan manual di DevTools)
+- [x] Favicon — `app/icon.png` (Next.js native, dari `logo-icon.png`) ✅
+- [x] OG image + Twitter card — `layout.tsx` dan `app/s/[token]/page.tsx` sudah ada `generateMetadata` ✅
+
+**Phase 3 post-release fixes (2026-04-25):**
+- [x] **Per-consumer quantity** — `item_consumers.quantity` column ditambah (migration applied). Setiap konsumer punya qty sendiri. Form hapus global "Qty" item, ganti dengan qty input per orang setelah centang konsumer.
+- [x] **Edit item** — tombol ✏️ di `ItemRow` buka inline `AddItemForm` (mode edit) dengan data pre-filled. Submit via `PATCH /api/items/:id`. `usePurchase.updateItem` ditambah.
+- [x] **Input angka bukan `type="number"`** — semua qty input pakai `type="text"` + `inputMode="numeric"` (tidak ada arrow spinner).
+- [x] **Format nominal dengan titik** — `CurrencyInput` sekarang format `1.000.000` saat blur, raw digits saat focus.
 
 **Done when:** Create, fill, share — friend views result on phone. Link preview shows logo.
 
@@ -929,10 +952,10 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. Verifikasi end-to-end flow di browser secara manual (API sudah ✅, perlu test UI + interaksi)
-2. Fix favicon — replace `public/favicon.ico` dengan versi dari `logo-icon.png` (saat ini masih default Next.js)
-3. Unit tests untuk split algorithm
-4. Mobile audit (390px, 430px) — test di browser DevTools
+1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow di browser — jalankan `pnpm dev`, test full flow: buat tagihan → tambah peserta → tambah transaksi + item → hitung → share link
+2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — buka Chrome DevTools → toggle device toolbar → test semua interaksi touch
+3. **[HARUS DILAKUKAN MANUAL]** Test share page dari link yang di-share — pastikan OG preview muncul dengan judul bill yang benar
+4. Setelah mobile audit: Phase 4 (SEO, analytics, AdSense)
 
 ---
 

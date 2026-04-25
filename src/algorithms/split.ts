@@ -7,7 +7,12 @@ export interface SplitInput {
     id: string
     paidBy: string
     totalAmount: number
-    items: { id: string; price: number; quantity: number; consumers: string[] }[]
+    items: {
+      id: string
+      price: number
+      quantity: number
+      consumers: { participantId: string; quantity: number }[]
+    }[]
   }[]
 }
 
@@ -46,12 +51,18 @@ export function calculateSplit(input: SplitInput): SplitOutput {
     // item-based split
     for (const purchase of purchases) {
       for (const item of purchase.items) {
-        const consumerIds =
-          item.consumers.length > 0 ? item.consumers : [purchase.paidBy]
-        const itemTotal = round2(item.price * item.quantity)
-        const share = round2(itemTotal / consumerIds.length)
-        for (const cId of consumerIds) {
-          consumed[cId] = round2((consumed[cId] ?? 0) + share)
+        if (item.consumers.length === 0) {
+          // no consumers: full cost goes to payer
+          consumed[purchase.paidBy] = round2(
+            (consumed[purchase.paidBy] ?? 0) + item.price * item.quantity
+          )
+        } else {
+          // each consumer pays price × their own quantity
+          for (const consumer of item.consumers) {
+            consumed[consumer.participantId] = round2(
+              (consumed[consumer.participantId] ?? 0) + item.price * consumer.quantity
+            )
+          }
         }
       }
     }

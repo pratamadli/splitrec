@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: Params) {
           id: item.id,
           price: Number(item.price),
           quantity: item.quantity,
-          consumers: item.consumers.map((c) => c.participantId),
+          consumers: item.consumers.map((c) => ({ participantId: c.participantId, quantity: c.quantity })),
         })),
       })),
     })

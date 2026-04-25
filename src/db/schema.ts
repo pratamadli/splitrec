@@ -80,6 +80,7 @@ export const itemConsumers = pgTable(
     participantId: uuid('participant_id')
       .notNull()
       .references(() => participants.id, { onDelete: 'cascade' }),
+    quantity: integer('quantity').notNull().default(1),
   },
   (t) => [primaryKey({ columns: [t.itemId, t.participantId] })]
 )
