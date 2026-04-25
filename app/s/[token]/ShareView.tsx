@@ -31,7 +31,7 @@ export function ShareView({ bill }: ShareViewProps) {
             onCalculate={async () => {}}
           />
           <div className="px-4 pb-8">
-            <ShareButton shareToken={bill.shareToken} billId={bill.id} />
+            <ShareButton shareToken={bill.shareToken} billId={bill.id} createdAt={bill.createdAt} />
           </div>
         </>
       }

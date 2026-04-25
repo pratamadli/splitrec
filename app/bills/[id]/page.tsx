@@ -178,7 +178,7 @@ export default function BillPage({ params }: PageProps) {
         }
       />
       <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto px-4 pb-6">
-        <ShareButton shareToken={bill.shareToken} billId={bill.id} />
+        <ShareButton shareToken={bill.shareToken} billId={bill.id} createdAt={bill.createdAt} />
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </>
