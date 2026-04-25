@@ -524,7 +524,7 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
     payer: { id, name },
     items: [{
       id, name, price, quantity, note,
-      consumers: [{ participant: { id, name } }]
+      consumers: [{ participant: { id, name }, quantity: number }]
     }]
   }],
   debts: [{ id, amount, from: { id, name }, to: { id, name } }]
@@ -933,6 +933,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] **Edit item** — tombol ✏️ di `ItemRow` buka inline `AddItemForm` (mode edit) dengan data pre-filled. Submit via `PATCH /api/items/:id`. `usePurchase.updateItem` ditambah.
 - [x] **Input angka bukan `type="number"`** — semua qty input pakai `type="text"` + `inputMode="numeric"` (tidak ada arrow spinner).
 - [x] **Format nominal dengan titik** — `CurrencyInput` sekarang format `1.000.000` saat blur, raw digits saat focus.
+- [x] **Fix NaN di CurrencyInput saat edit item** — `quantity` per consumer tidak di-serialize di response `GET /api/bills/[id]` dan `GET /api/bills/share/[token]`. `AddItemForm` menghitung `initialTotalQty` dari `consumers.reduce(...)` — karena `quantity` undefined, hasilnya NaN yang masuk ke state `price`, lalu tampil sebagai "NaN" di input harga. Fix: tambah `quantity: c.quantity` di consumers mapping di kedua route (`app/api/bills/[id]/route.ts` dan `app/api/bills/share/[token]/route.ts`).
 
 **Done when:** Create, fill, share — friend views result on phone. Link preview shows logo.
 
