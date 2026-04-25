@@ -34,8 +34,11 @@ export function AddItemForm({
   onSubmit,
   onCancel,
 }: AddItemFormProps) {
+  const initialTotalQty = initialValues?.consumers.reduce((s, c) => s + c.quantity, 0) ?? 1
   const [name, setName] = useState(initialValues?.name ?? '')
-  const [price, setPrice] = useState(initialValues?.price ?? 0)
+  const [price, setPrice] = useState(
+    initialValues ? initialValues.price * Math.max(initialTotalQty, 1) : 0
+  )
   const [note, setNote] = useState(initialValues?.note ?? '')
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initialValues?.consumers.map((c) => c.participantId) ?? []
@@ -66,7 +69,9 @@ export function AddItemForm({
     setLoading(true)
     try {
       const consumers = selectedIds.map((id) => ({ participantId: id, quantity: qtys[id] ?? 1 }))
-      await onSubmit({ name, price, note: note || null, consumers })
+      const totalQty = consumers.reduce((s, c) => s + c.quantity, 0)
+      const pricePerPortion = price / Math.max(totalQty, 1)
+      await onSubmit({ name, price: pricePerPortion, note: note || null, consumers })
     } finally {
       setLoading(false)
     }
@@ -82,7 +87,7 @@ export function AddItemForm({
         maxLength={200}
         required
       />
-      <CurrencyInput label="Harga per porsi" value={price} onChange={setPrice} />
+      <CurrencyInput label="Harga total" value={price} onChange={setPrice} />
       <Input
         label="Catatan (opsional)"
         value={note}
