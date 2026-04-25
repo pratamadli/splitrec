@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Logo } from '@/src/components/atoms/Logo'
 import { Button } from '@/src/components/atoms/Button'
 import { generateDeviceId } from '@/src/lib/device'
+import { version } from '@/package.json'
 
 export default function HomePage() {
   const router = useRouter()
@@ -28,23 +29,28 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
-      <div className="flex flex-col items-center gap-8 max-w-sm w-full">
-        <Logo size="lg" />
-        <div className="text-center flex flex-col gap-2">
-          <p className="text-gray-500 text-base">Split receipts, not friendships.</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <main className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="flex flex-col items-center gap-8 max-w-sm w-full">
+          <Logo size="lg" />
+          <div className="text-center flex flex-col gap-2">
+            <p className="text-gray-500 text-base">Split receipts, not friendships.</p>
+          </div>
+          <Button
+            onClick={handleCreate}
+            isLoading={isLoading}
+            className="w-full h-14 text-base font-semibold"
+          >
+            Buat Tagihan Baru
+          </Button>
+          <p className="text-xs text-gray-400 text-center">
+            Tidak perlu daftar. Bagikan link ke teman setelah selesai.
+          </p>
         </div>
-        <Button
-          onClick={handleCreate}
-          isLoading={isLoading}
-          className="w-full h-14 text-base font-semibold"
-        >
-          Buat Tagihan Baru
-        </Button>
-        <p className="text-xs text-gray-400 text-center">
-          Tidak perlu daftar. Bagikan link ke teman setelah selesai.
-        </p>
-      </div>
+      </main>
+      <footer className="py-4 text-center">
+        <p className="text-xs text-gray-300">Version: {version}</p>
+      </footer>
     </div>
   )
 }
