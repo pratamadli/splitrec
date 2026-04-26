@@ -15,7 +15,7 @@ interface CurrencyInputProps {
 
 function formatWithDots(value: number): string {
   if (value === 0) return ''
-  return value.toLocaleString('id-ID')
+  return Math.round(value).toLocaleString('id-ID')
 }
 
 export function CurrencyInput({
@@ -34,7 +34,7 @@ export function CurrencyInput({
 
   const handleFocus = () => {
     setFocused(true)
-    setRawInput(value === 0 ? '' : String(value))
+    setRawInput(value === 0 ? '' : String(Math.round(value)))
   }
 
   const handleBlur = () => {

@@ -6,18 +6,25 @@ interface LogoProps {
   className?: string
 }
 
-const sizes = { sm: 100, md: 140, lg: 180 }
+const iconSizes = { sm: 32, md: 40, lg: 56 }
+const textClasses = { sm: 'text-2xl', md: 'text-3xl', lg: 'text-4xl' }
 
 export function Logo({ size = 'md', className }: LogoProps) {
-  const w = sizes[size]
+  const iconSize = iconSizes[size]
   return (
-    <Image
-      src="/logo.png"
-      alt="Splitrec"
-      width={w}
-      height={Math.round(w * 0.4)}
-      priority
-      className={cn('object-contain', className)}
-    />
+    <div className={cn('flex items-center gap-2', className)}>
+      <Image
+        src="/logo-icon.png"
+        alt="Splitrec"
+        width={iconSize}
+        height={iconSize}
+        priority
+        className="object-contain"
+      />
+      <span className={cn('font-bold leading-none', textClasses[size])}>
+        <span className="text-brand-blue">Split</span>
+        <span className="text-brand-green">rec</span>
+      </span>
+    </div>
   )
 }

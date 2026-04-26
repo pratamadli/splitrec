@@ -41,6 +41,7 @@ export default async function SharePage({ params }: PageProps) {
       title: p.title,
       totalAmount: Number(p.totalAmount),
       payer: { id: p.payer.id, name: p.payer.name },
+      charges: p.charges ?? null,
       items: p.items.map((item) => ({
         id: item.id,
         name: item.name,

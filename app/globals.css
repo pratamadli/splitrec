@@ -18,8 +18,16 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  overflow-x: hidden;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }

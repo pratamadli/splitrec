@@ -14,12 +14,21 @@ export interface ItemData {
   consumers: { participant: ParticipantData; quantity: number }[]
 }
 
+export interface PurchaseCharges {
+  tax: number
+  serviceCharge: number
+  gratuity: number
+  discount: number
+  discountMode: 'equal' | 'item'
+}
+
 export interface PurchaseData {
   id: string
   title: string
   totalAmount: number
   payer: ParticipantData
   items: ItemData[]
+  charges: PurchaseCharges | null
 }
 
 export interface DebtData {

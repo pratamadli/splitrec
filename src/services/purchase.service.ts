@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/src/db'
 import { purchases } from '@/src/db/schema'
+import type { PurchaseCharges } from '@/src/types/bill.types'
 
 export async function addPurchase(
   billId: string,
@@ -17,12 +18,13 @@ export async function addPurchase(
 
 export async function updatePurchase(
   id: string,
-  data: Partial<{ title: string; paidBy: string; totalAmount: number }>
+  data: Partial<{ title: string; paidBy: string; totalAmount: number; charges: PurchaseCharges | null }>
 ) {
   const set: Record<string, unknown> = {}
   if (data.title !== undefined) set.title = data.title.trim()
   if (data.paidBy !== undefined) set.paidBy = data.paidBy
   if (data.totalAmount !== undefined) set.totalAmount = String(data.totalAmount)
+  if (data.charges !== undefined) set.charges = data.charges
   const [updated] = await db.update(purchases).set(set).where(eq(purchases.id, id)).returning()
   return updated
 }

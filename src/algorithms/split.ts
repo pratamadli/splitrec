@@ -1,5 +1,13 @@
 export type SplitMode = 'equal' | 'item'
 
+interface PurchaseCharges {
+  tax: number
+  serviceCharge: number
+  gratuity: number
+  discount: number
+  discountMode: 'equal' | 'item'
+}
+
 export interface SplitInput {
   splitMode: SplitMode
   participants: { id: string; name: string }[]
@@ -7,6 +15,7 @@ export interface SplitInput {
     id: string
     paidBy: string
     totalAmount: number
+    charges?: PurchaseCharges | null
     items: {
       id: string
       price: number
@@ -26,7 +35,7 @@ function round2(n: number): number {
 }
 
 export function calculateSplit(input: SplitInput): SplitOutput {
-  const { splitMode, participants, purchases } = input
+  const { participants, purchases } = input
 
   const paid: Record<string, number> = {}
   const consumed: Record<string, number> = {}
@@ -41,28 +50,55 @@ export function calculateSplit(input: SplitInput): SplitOutput {
     paid[purchase.paidBy] = round2((paid[purchase.paidBy] ?? 0) + purchase.totalAmount)
   }
 
-  if (splitMode === 'equal') {
-    const total = purchases.reduce((sum, p) => round2(sum + p.totalAmount), 0)
-    const share = round2(total / participants.length)
-    for (const p of participants) {
-      consumed[p.id] = share
-    }
-  } else {
-    // item-based split
-    for (const purchase of purchases) {
+  // Per-purchase split mode: no items = equal split, has items = item split
+  for (const purchase of purchases) {
+    if (purchase.items.length === 0) {
+      // Equal split for this purchase
+      const share = round2(purchase.totalAmount / participants.length)
+      for (const p of participants) {
+        consumed[p.id] = round2((consumed[p.id] ?? 0) + share)
+      }
+    } else {
+      // Item-based split for this purchase
+      // First pass: accumulate each participant's raw item consumption
+      const itemConsumed: Record<string, number> = {}
+      for (const p of participants) itemConsumed[p.id] = 0
+
       for (const item of purchase.items) {
         if (item.consumers.length === 0) {
-          // no consumers: full cost goes to payer
-          consumed[purchase.paidBy] = round2(
-            (consumed[purchase.paidBy] ?? 0) + item.price * item.quantity
+          itemConsumed[purchase.paidBy] = round2(
+            (itemConsumed[purchase.paidBy] ?? 0) + item.price * item.quantity
           )
         } else {
-          // each consumer pays price × their own quantity
           for (const consumer of item.consumers) {
-            consumed[consumer.participantId] = round2(
-              (consumed[consumer.participantId] ?? 0) + item.price * consumer.quantity
+            itemConsumed[consumer.participantId] = round2(
+              (itemConsumed[consumer.participantId] ?? 0) + item.price * consumer.quantity
             )
           }
+        }
+      }
+
+      const charges = purchase.charges
+      if (charges) {
+        const { tax, serviceCharge, gratuity, discount, discountMode } = charges
+        const itemTotal = Object.values(itemConsumed).reduce((s, v) => s + v, 0)
+        const others = Math.max(
+          0,
+          purchase.totalAmount + discount - itemTotal - tax - serviceCharge - gratuity
+        )
+        const equalShare = round2((tax + serviceCharge + gratuity + others) / participants.length)
+
+        for (const p of participants) {
+          const discountShare =
+            discountMode === 'item' && itemTotal > 0
+              ? round2(((itemConsumed[p.id] ?? 0) / itemTotal) * discount)
+              : round2(discount / participants.length)
+          const amount = round2((itemConsumed[p.id] ?? 0) + equalShare - discountShare)
+          consumed[p.id] = round2((consumed[p.id] ?? 0) + amount)
+        }
+      } else {
+        for (const p of participants) {
+          consumed[p.id] = round2((consumed[p.id] ?? 0) + (itemConsumed[p.id] ?? 0))
         }
       }
     }

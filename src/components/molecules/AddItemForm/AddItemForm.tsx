@@ -37,38 +37,45 @@ export function AddItemForm({
   const initialTotalQty = initialValues?.consumers.reduce((s, c) => s + c.quantity, 0) ?? 1
   const [name, setName] = useState(initialValues?.name ?? '')
   const [price, setPrice] = useState(
-    initialValues ? initialValues.price * Math.max(initialTotalQty, 1) : 0
+    initialValues ? Math.round(initialValues.price * Math.max(initialTotalQty, 1)) : 0
   )
   const [note, setNote] = useState(initialValues?.note ?? '')
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initialValues?.consumers.map((c) => c.participantId) ?? []
   )
-  const [qtys, setQtys] = useState<Record<string, number>>(
-    Object.fromEntries(initialValues?.consumers.map((c) => [c.participantId, c.quantity]) ?? [])
+  // Store qty as string so users can clear the field and retype freely
+  const [qtys, setQtys] = useState<Record<string, string>>(
+    Object.fromEntries(initialValues?.consumers.map((c) => [c.participantId, String(c.quantity)]) ?? [])
   )
   const [loading, setLoading] = useState(false)
 
   const handleSelectChange = (ids: string[]) => {
     setSelectedIds(ids)
     setQtys((prev) => {
-      const next: Record<string, number> = {}
-      for (const id of ids) next[id] = prev[id] ?? 1
+      const next: Record<string, string> = {}
+      for (const id of ids) next[id] = prev[id] ?? '1'
       return next
     })
   }
 
   const handleQtyChange = (id: string, raw: string) => {
-    const digits = raw.replace(/\D/g, '')
-    const n = digits ? parseInt(digits, 10) : 1
-    setQtys((prev) => ({ ...prev, [id]: n < 1 ? 1 : n > 999 ? 999 : n }))
+    // Allow empty string or digits only, cap at 999
+    const cleaned = raw.replace(/\D/g, '')
+    const capped = cleaned && parseInt(cleaned, 10) > 999 ? '999' : cleaned
+    setQtys((prev) => ({ ...prev, [id]: capped }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const parsedQtys = Object.fromEntries(
+    Object.entries(qtys).map(([id, s]) => [id, parseInt(s || '0', 10)])
+  )
+  const allQtysValid = selectedIds.every((id) => (parsedQtys[id] ?? 0) >= 1)
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!name.trim() || price <= 0) return
+    if (!name.trim() || price <= 0 || !allQtysValid) return
     setLoading(true)
     try {
-      const consumers = selectedIds.map((id) => ({ participantId: id, quantity: qtys[id] ?? 1 }))
+      const consumers = selectedIds.map((id) => ({ participantId: id, quantity: parsedQtys[id] ?? 1 }))
       const totalQty = consumers.reduce((s, c) => s + c.quantity, 0)
       const pricePerPortion = price / Math.max(totalQty, 1)
       await onSubmit({ name, price: pricePerPortion, note: note || null, consumers })
@@ -115,9 +122,12 @@ export function AddItemForm({
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={qtys[id] ?? 1}
+                  value={qtys[id] ?? '1'}
                   onChange={(e) => handleQtyChange(id, e.target.value)}
-                  className="w-16 h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                  placeholder="1"
+                  className={`w-16 h-9 rounded-lg border bg-white px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-blue ${
+                    (parsedQtys[id] ?? 0) < 1 ? 'border-red-300' : 'border-gray-200'
+                  }`}
                 />
               </div>
             )
@@ -128,7 +138,7 @@ export function AddItemForm({
         <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">
           Batal
         </Button>
-        <Button type="submit" isLoading={loading} disabled={!name.trim() || price <= 0} className="flex-1">
+        <Button type="submit" isLoading={loading} disabled={!name.trim() || price <= 0 || !allQtysValid} className="flex-1">
           {submitLabel}
         </Button>
       </div>

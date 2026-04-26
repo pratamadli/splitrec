@@ -5,10 +5,9 @@ interface BillEditLayoutProps {
   summary: ReactNode
   participants: ReactNode
   purchases: ReactNode
-  result: ReactNode
 }
 
-export function BillEditLayout({ header, summary, participants, purchases, result }: BillEditLayoutProps) {
+export function BillEditLayout({ header, summary, participants, purchases }: BillEditLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-lg mx-auto">
       <div className="sticky top-0 z-10">{header}</div>
@@ -16,7 +15,6 @@ export function BillEditLayout({ header, summary, participants, purchases, resul
         {summary}
         {participants}
         {purchases}
-        {result}
       </div>
     </div>
   )

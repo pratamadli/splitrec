@@ -23,6 +23,7 @@ export async function POST(request: Request, { params }: Params) {
         id: p.id,
         paidBy: p.paidBy,
         totalAmount: Number(p.totalAmount),
+        charges: p.charges ?? null,
         items: p.items.map((item) => ({
           id: item.id,
           price: Number(item.price),
