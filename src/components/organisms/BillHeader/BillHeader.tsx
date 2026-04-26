@@ -3,17 +3,15 @@
 import { useState } from 'react'
 import { Logo } from '@/src/components/atoms/Logo'
 import { Input } from '@/src/components/atoms/Input'
-import { SplitModeToggle } from '@/src/components/molecules/SplitModeToggle'
-import type { BillData, SplitMode } from '@/src/types/bill.types'
+import type { BillData } from '@/src/types/bill.types'
 
 interface BillHeaderProps {
   bill: BillData
   onUpdateTitle: (title: string) => Promise<void>
-  onUpdateSplitMode: (mode: SplitMode) => Promise<void>
   isOwner: boolean
 }
 
-export function BillHeader({ bill, onUpdateTitle, onUpdateSplitMode, isOwner }: BillHeaderProps) {
+export function BillHeader({ bill, onUpdateTitle, isOwner }: BillHeaderProps) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(bill.title)
 
@@ -47,12 +45,6 @@ export function BillHeader({ bill, onUpdateTitle, onUpdateSplitMode, isOwner }: 
         >
           {bill.title}
         </h1>
-      )}
-      {isOwner && (
-        <SplitModeToggle
-          mode={bill.splitMode as SplitMode}
-          onChange={onUpdateSplitMode}
-        />
       )}
     </div>
   )

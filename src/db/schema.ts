@@ -40,6 +40,14 @@ export const participants = pgTable(
   (t) => [index('participants_bill_id_idx').on(t.billId)]
 )
 
+type PurchaseChargesJson = {
+  tax: number
+  serviceCharge: number
+  gratuity: number
+  discount: number
+  discountMode: 'equal' | 'item'
+}
+
 export const purchases = pgTable(
   'purchases',
   {
@@ -52,6 +60,7 @@ export const purchases = pgTable(
       .notNull()
       .references(() => participants.id, { onDelete: 'cascade' }),
     totalAmount: numeric('total_amount', { precision: 15, scale: 2 }).notNull(),
+    charges: jsonb('charges').$type<PurchaseChargesJson | null>(),
   },
   (t) => [index('purchases_bill_id_idx').on(t.billId)]
 )

@@ -14,20 +14,22 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!isOwner) return apiError('Forbidden', 403)
 
     const body = await request.json()
-    const { title, paidBy, totalAmount } = body as {
+    const { title, paidBy, totalAmount, charges } = body as {
       title?: string
       paidBy?: string
       totalAmount?: number
+      charges?: import('@/src/types/bill.types').PurchaseCharges | null
     }
 
     if (totalAmount !== undefined && totalAmount <= 0)
       return apiError('totalAmount must be positive', 400, { field: 'totalAmount' })
 
-    const purchase = await updatePurchase(id, { title, paidBy, totalAmount })
+    const purchase = await updatePurchase(id, { title, paidBy, totalAmount, charges })
     return NextResponse.json({
       id: purchase.id,
       title: purchase.title,
       totalAmount: Number(purchase.totalAmount),
+      charges: purchase.charges ?? null,
     })
   } catch {
     return apiError('Internal server error', 500)

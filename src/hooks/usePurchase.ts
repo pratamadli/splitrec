@@ -12,7 +12,7 @@ export function usePurchase(billId: string, mutate: KeyedMutator<BillData>) {
   const deviceId = useDeviceId()
 
   const addPurchase = useCallback(
-    async (data: { title: string; paidBy: string; totalAmount: number }) => {
+    async (data: { title: string; paidBy: string; totalAmount: number }): Promise<string> => {
       const tempId = `temp-${Date.now()}`
       const payer = { id: data.paidBy, name: '' }
       await mutate(
@@ -21,7 +21,7 @@ export function usePurchase(billId: string, mutate: KeyedMutator<BillData>) {
               ...cur,
               purchases: [
                 ...cur.purchases,
-                { id: tempId, title: data.title, totalAmount: data.totalAmount, payer, items: [] },
+                { id: tempId, title: data.title, totalAmount: data.totalAmount, payer, charges: null, items: [] },
               ],
             }
           : cur,
@@ -34,17 +34,27 @@ export function usePurchase(billId: string, mutate: KeyedMutator<BillData>) {
           body: JSON.stringify(data),
         })
         if (!res.ok) throw new Error('Gagal menambah purchase')
+        const newPurchase: { id: string } = await res.json()
+        await mutate()
+        return newPurchase.id
       } catch (e) {
         await mutate()
         throw e
       }
-      await mutate()
     },
     [billId, deviceId, mutate]
   )
 
   const updatePurchase = useCallback(
-    async (purchaseId: string, data: { title?: string; paidBy?: string; totalAmount?: number }) => {
+    async (
+      purchaseId: string,
+      data: {
+        title?: string
+        paidBy?: string
+        totalAmount?: number
+        charges?: import('@/src/types/bill.types').PurchaseCharges | null
+      }
+    ) => {
       await fetch(`/api/purchases/${purchaseId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },

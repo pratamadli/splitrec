@@ -2,7 +2,7 @@
 
 > **Tagline:** Split receipts, not friendships.
 > **Status:** Pre-development · MVP phase
-> **Last updated:** 2026-04-18
+> **Last updated:** 2026-04-27
 > **Sources:** Planning sessions + PRD (MVP) + Product Guide + Database schema review + Brand logo (splitrec_logo.png)
 
 ---
@@ -390,6 +390,7 @@ bill_id       uuid NOT NULL REFERENCES bills(id) ON DELETE CASCADE
 title         text NOT NULL
 paid_by       uuid NOT NULL REFERENCES participants(id) ON DELETE CASCADE
 total_amount  numeric(15,2) NOT NULL
+charges       jsonb          -- nullable: { tax, serviceCharge, gratuity, discount, discountMode }
 
 -- items
 id            uuid PRIMARY KEY DEFAULT gen_random_uuid()
@@ -462,6 +463,7 @@ CREATE UNIQUE INDEX ON feature_flags(device_id, feature);
 | `item_consumers` PK | Composite `(item_id, participant_id)` | Prevents duplicates at DB level |
 | `item_consumers.quantity` | Per-consumer integer (default 1) | Each person can consume a different number of units of the same item |
 | `items.quantity` | Always 1 when consumers assigned | Only meaningful when consumers is empty (fallback equal-split uses it) |
+| `purchases.charges` | JSONB, nullable | Stores per-purchase additional charges. Null = no charges. Never stored as a separate table — it's always loaded with the purchase. |
 | `debts` | Fully replaced on `/calculate` | Computed result, not a ledger |
 | `settlements` | In schema, unused in MVP | Zero-migration activation for payment later |
 | `events` | Always async, never awaited | Failure must never affect user flow |
@@ -521,6 +523,7 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
   participants: [{ id, name }],
   purchases: [{
     id, title, totalAmount,
+    charges: { tax, serviceCharge, gratuity, discount, discountMode } | null,
     payer: { id, name },
     items: [{
       id, name, price, quantity, note,
@@ -560,6 +563,23 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
 { name: string, price: number, note?: string, consumers: { participantId: string, quantity: number }[] }
 // consumers empty → cost goes to purchase payer (equal-split fallback)
 // consumers non-empty → each person pays price × their own quantity
+```
+
+**PATCH `/api/purchases/[id]`**
+```ts
+// Body (all fields optional)
+{
+  title?: string
+  paidBy?: string
+  totalAmount?: number
+  charges?: {
+    tax: number
+    serviceCharge: number
+    gratuity: number
+    discount: number
+    discountMode: 'equal' | 'item'
+  } | null
+}
 ```
 
 **PATCH `/api/items/[id]`**
@@ -610,6 +630,26 @@ balance[p]  = paid[p] - share
    balance[p]  = paid[p] - consumed[p]
 ```
 
+### Mode B + Charges (per-purchase additional charges)
+
+When a per-item purchase has `charges` set:
+
+```
+itemTotal     = sum over items of (price × sum(consumer.quantity))
+                  -- if consumers empty: price × item.quantity
+others (auto) = max(0, totalAmount + discount - itemTotal - tax - serviceCharge - gratuity)
+
+For each participant p:
+  equalShare    = round((tax + serviceCharge + gratuity + others) / participants.length, 2)
+  discountShare = if discountMode === 'item' && itemTotal > 0:
+                    round((itemConsumed[p] / itemTotal) × discount, 2)
+                  else:
+                    round(discount / participants.length, 2)
+  consumed[p]   = round(itemConsumed[p] + equalShare - discountShare, 2)
+```
+
+`others` is auto-calculated (not stored) — it absorbs any rounding residuals between `totalAmount` and the sum of explicit charges. Tax/service/gratuity/others are always split equally. Discount is split equally (`discountMode: 'equal'`) or proportionally to item consumption (`discountMode: 'item'`).
+
 ### Settlement (both modes)
 
 ```
@@ -627,6 +667,14 @@ balance[p]  = paid[p] - share
 ```ts
 export type SplitMode = 'equal' | 'item'
 
+export interface PurchaseCharges {
+  tax: number
+  serviceCharge: number
+  gratuity: number
+  discount: number
+  discountMode: 'equal' | 'item'
+}
+
 export interface SplitInput {
   splitMode: SplitMode
   participants: { id: string; name: string }[]
@@ -634,10 +682,11 @@ export interface SplitInput {
     id: string
     paidBy: string
     totalAmount: number
+    charges?: PurchaseCharges | null
     items: {
       id: string
-      price: number
-      quantity: number  // only used when consumers is empty (equal-split fallback)
+      price: number          // per-portion price = totalItemCost / sum(consumer.quantity)
+      quantity: number       // only used when consumers is empty (fallback)
       consumers: { participantId: string; quantity: number }[]
     }[]
   }[]
@@ -707,9 +756,9 @@ No layer imports from above. Hooks used in Organisms and Pages only.
 | `BillHeader` | `useBill` | Logo + title (editable) + split mode toggle |
 | `BillSummary` | `useBill` | 3 metric cards: total, participants, purchases |
 | `ParticipantList` | `useBillParticipants` | Chips + add form |
-| `PurchaseCard` | `usePurchase` | One purchase + items. Collapsible. |
+| `PurchaseCard` | `usePurchase` | One purchase + items + inline edit form + badge (Per Item / Bagi Rata) + `ChargesPanel` |
 | `PurchaseList` | `useBill` | All PurchaseCards + add purchase |
-| `SettlementResult` | `useSettlement` | Debt rows + balance breakdown + `<AdSlot />` |
+| `SettlementResult` | `useSettlement` | Debt rows + balance breakdown + charges breakdown + `<AdSlot />` |
 
 ### Templates
 
@@ -725,8 +774,9 @@ No layer imports from above. Hooks used in Organisms and Pages only.
 
 | Route | Access | Description |
 |---|---|---|
-| `/` | Public | Landing — Logo + "Buat Tagihan" CTA button |
+| `/` | Public | Landing — Logo + "Buat Tagihan Baru" CTA button |
 | `/bills/[id]` | Owner (deviceId match) | Full edit view |
+| `/bills/[id]/result` | Owner | Hasil pembagian — shows settlement + "Buat Tagihan Baru" + ShareButton |
 | `/s/[token]` | Public | Read-only share view |
 
 ### Step-by-step
@@ -872,7 +922,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 14. Development Roadmap
 
-> **Status terakhir diupdate:** 2026-04-25
+> **Status terakhir diupdate:** 2026-04-27
 > **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
 > **Favicon:** Sudah fix — `app/icon.png` (copy dari `logo-icon.png`), Next.js 13+ otomatis pakai sebagai favicon. `public/favicon.ico` lama tidak perlu dihapus.
@@ -928,12 +978,32 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] Favicon — `app/icon.png` (Next.js native, dari `logo-icon.png`) ✅
 - [x] OG image + Twitter card — `layout.tsx` dan `app/s/[token]/page.tsx` sudah ada `generateMetadata` ✅
 
-**Phase 3 post-release fixes (2026-04-25):**
+**Phase 3 post-release fixes (2026-04-25) — v1.1.0 / v1.1.1:**
 - [x] **Per-consumer quantity** — `item_consumers.quantity` column ditambah (migration applied). Setiap konsumer punya qty sendiri. Form hapus global "Qty" item, ganti dengan qty input per orang setelah centang konsumer.
 - [x] **Edit item** — tombol ✏️ di `ItemRow` buka inline `AddItemForm` (mode edit) dengan data pre-filled. Submit via `PATCH /api/items/:id`. `usePurchase.updateItem` ditambah.
 - [x] **Input angka bukan `type="number"`** — semua qty input pakai `type="text"` + `inputMode="numeric"` (tidak ada arrow spinner).
 - [x] **Format nominal dengan titik** — `CurrencyInput` sekarang format `1.000.000` saat blur, raw digits saat focus.
-- [x] **Fix NaN di CurrencyInput saat edit item** — `quantity` per consumer tidak di-serialize di response `GET /api/bills/[id]` dan `GET /api/bills/share/[token]`. `AddItemForm` menghitung `initialTotalQty` dari `consumers.reduce(...)` — karena `quantity` undefined, hasilnya NaN yang masuk ke state `price`, lalu tampil sebagai "NaN" di input harga. Fix: tambah `quantity: c.quantity` di consumers mapping di kedua route (`app/api/bills/[id]/route.ts` dan `app/api/bills/share/[token]/route.ts`).
+- [x] **Fix NaN di CurrencyInput saat edit item** — `quantity` per consumer tidak di-serialize di response. Fix: tambah `quantity: c.quantity` di consumers mapping di kedua GET route.
+
+**Phase 3 post-release features (2026-04-27) — v1.2.0: Per-item charges:**
+- [x] **DB migration** — `charges jsonb` column ditambah ke tabel `purchases` (`drizzle/0002_purchase_charges.sql`, applied via Neon Serverless SDK langsung karena drizzle-kit migrate timeout).
+- [x] **Types** — `PurchaseCharges` interface di `src/types/bill.types.ts`; `charges: PurchaseCharges | null` di `PurchaseData`.
+- [x] **Service + API** — `purchase.service.ts` dan `PATCH /api/purchases/[id]` menerima dan menyimpan `charges`. `GET /api/bills/[id]` dan `GET /api/bills/share/[token]` menyertakan `charges` di response.
+- [x] **Algorithm** — `src/algorithms/split.ts` extended: per-purchase charges distribution (tax/service/gratuity/others = equal split; discount = equal atau per-item proportional). `others` dihitung otomatis sebagai selisih antara `totalAmount` dan sum item + explicit charges.
+- [x] **ChargesPanel** — komponen baru di `PurchaseCard.tsx`. Input pajak, service charge, gratuity, diskon. `Others (auto)` dikalkulasi live. Discount mode toggle (rata / per item). **Auto-save** dengan debounce 800ms via `useRef` — tidak ada tombol "Simpan Biaya", perubahan tersimpan otomatis. Indikator "Menyimpan..." saat save berjalan.
+- [x] **Badge Per Item / Bagi Rata** — pill di sebelah judul transaksi di `PurchaseHeader`. `isPerItem = purchase.items.length > 0 || defaultAddingItem`.
+- [x] **Edit transaksi inline** — mode edit di `PurchaseCard`: ubah judul, total, pembayar. Charges panel hanya tampil setelah minimal 1 item ditambahkan.
+- [x] **Sembunyikan "Tambah Item" untuk bagi rata** — section items hanya tampil jika `purchase.items.length > 0 || (defaultAddingItem && isOwner)`.
+- [x] **SettlementResult breakdown** — `computeBreakdown` di `SettlementResult.tsx` menyertakan charges breakdown (pajak & biaya lainnya rata, diskon) sebagai baris tambahan per peserta.
+- [x] **Halaman hasil pembagian** — `app/bills/[id]/result/page.tsx` sebagai halaman dedicated result. Berisi `SettlementResult`, `ShareButton`, tombol "Edit" (owner only), dan tombol **"Buat Tagihan Baru"** (fungsi identik dengan landing page).
+
+**Phase 3 post-release bug fixes (2026-04-27) — v1.2.0 (lanjutan):**
+- [x] **Others (auto) floating point** — Semua kalkulasi intermediate di `ChargesPanel` dan `computeBreakdown` menggunakan `r2 = (n) => Math.round(n * 100) / 100`. Tidak ada lagi residual seperti `0.01`.
+- [x] **itemTotal formula salah** — Bug: `item.price * item.quantity` (= per-portion price × 1). Fix: `item.price × sum(consumer.quantity)` untuk item dengan konsumer. Diperbaiki di `ChargesPanel` (owner + non-owner view) dan `SettlementResult.computeBreakdown`.
+- [x] **Harga total tampil float** — CurrencyInput `handleFocus` dan `formatWithDots` sekarang `Math.round()` sebelum display. `AddItemForm` initial price juga `Math.round(price × totalQty)`.
+- [x] **Qty per orang tidak bisa dihapus** — `qtys` state di `AddItemForm` diganti dari `Record<string, number>` ke `Record<string, string>`. User bisa hapus angka dan isi ulang. Submit diblokir jika ada qty < 1.
+- [x] **Charges tidak retain saat navigasi Edit → Result → Edit** — Diatasi oleh auto-save charges (debounce 800ms). Charges tersimpan otomatis tanpa perlu klik tombol.
+- [x] **BillSummary crash saat bill baru dibuat** — `purchases ?? []` sebagai fallback defensif. Root cause: SWR fetcher tidak throw saat response non-OK, body error tersimpan sebagai `data`.
 
 **Done when:** Create, fill, share — friend views result on phone. Link preview shows logo.
 
@@ -953,9 +1023,9 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow di browser — jalankan `pnpm dev`, test full flow: buat tagihan → tambah peserta → tambah transaksi + item → hitung → share link
-2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — buka Chrome DevTools → toggle device toolbar → test semua interaksi touch
-3. **[HARUS DILAKUKAN MANUAL]** Test share page dari link yang di-share — pastikan OG preview muncul dengan judul bill yang benar
+1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.1.x di browser — jalankan `pnpm dev`, test: buat tagihan per item → tambah peserta → tambah item dengan qty berbeda → isi charges (pajak/service/gratuity/diskon) → tunggu auto-save → klik "Hitung Pembagian" → halaman result → cek breakdown per peserta → tombol "Buat Tagihan Baru"
+2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — test ChargesPanel, qty input, CurrencyInput, badge per transaksi
+3. **[HARUS DILAKUKAN MANUAL]** Test share page — pastikan halaman `/s/[token]` menampilkan charges (pajak, service, dll) dengan benar untuk non-owner view
 4. Setelah mobile audit: Phase 4 (SEO, analytics, AdSense)
 
 ---
