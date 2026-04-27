@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { PurchaseHeader } from '@/src/components/molecules/PurchaseHeader'
 import { ItemRow } from '@/src/components/molecules/ItemRow'
 import { AddItemForm } from '@/src/components/molecules/AddItemForm'
@@ -29,6 +29,16 @@ interface PurchaseCardProps {
   onDeleteItem: (itemId: string) => Promise<void>
 }
 
+const r2 = (n: number) => Math.round(n * 100) / 100
+
+export function computeItemTotal(items: PurchaseData['items']): number {
+  return r2(items.reduce((s, item) => {
+    const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
+    const cost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
+    return r2(s + cost)
+  }, 0))
+}
+
 const EMPTY_CHARGES: PurchaseCharges = {
   tax: 0,
   serviceCharge: 0,
@@ -51,30 +61,41 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
   )
   const [saving, setSaving] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onSaveRef = useRef(onSave)
+  useEffect(() => { onSaveRef.current = onSave })
 
   // Re-sync if purchase.charges changes externally (e.g. after revalidation)
   useEffect(() => {
     setCharges(purchase.charges ?? { ...EMPTY_CHARGES })
   }, [purchase.charges])
 
-  const r2 = (n: number) => Math.round(n * 100) / 100
-  const itemTotal = r2(purchase.items.reduce((s, item) => {
-    const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
-    const cost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
-    return r2(s + cost)
-  }, 0))
+  const itemTotal = computeItemTotal(purchase.items)
   const others = Math.max(
     0,
     r2(purchase.totalAmount + charges.discount - itemTotal - charges.tax - charges.serviceCharge - charges.gratuity)
   )
 
-  const scheduleAutoSave = (next: PurchaseCharges) => {
+  const scheduleAutoSave = useCallback((next: PurchaseCharges) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       setSaving(true)
-      try { await onSave(next) } finally { setSaving(false) }
+      try { await onSaveRef.current(next) } finally { setSaving(false) }
     }, 800)
-  }
+  }, [])
+
+  // Auto-populate discount when items + charges exceed totalAmount
+  useEffect(() => {
+    const currentItemTotal = computeItemTotal(purchase.items)
+    setCharges(prev => {
+      const excess = r2(currentItemTotal + prev.tax + prev.serviceCharge + prev.gratuity - purchase.totalAmount)
+      if (excess > 0 && prev.discount < excess) {
+        const next = { ...prev, discount: excess }
+        scheduleAutoSave(next)
+        return next
+      }
+      return prev
+    })
+  }, [purchase.items, purchase.totalAmount, scheduleAutoSave])
 
   const update = (key: keyof Omit<PurchaseCharges, 'discountMode'>, value: number) => {
     const next = { ...charges, [key]: value }
@@ -98,11 +119,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
   if (!isOwner) {
     if (!hasAnyCharge) return null
     const savedCharges = purchase.charges!
-    const savedItemTotal = r2(purchase.items.reduce((s, item) => {
-      const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
-      const cost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
-      return r2(s + cost)
-    }, 0))
+    const savedItemTotal = computeItemTotal(purchase.items)
     const savedOthers = Math.max(
       0,
       r2(purchase.totalAmount + savedCharges.discount - savedItemTotal - savedCharges.tax - savedCharges.serviceCharge - savedCharges.gratuity)
