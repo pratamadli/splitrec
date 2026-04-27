@@ -180,6 +180,12 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
             </button>
           </div>
         )}
+
+        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount) > r2(purchase.totalAmount) + 0.01 && (
+          <p className="text-xs text-red-500 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
+            Transaksi belum balance. Tambah diskon atau kurangi nilai item/biaya.
+          </p>
+        )}
       </div>
     </div>
   )

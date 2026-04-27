@@ -169,24 +169,19 @@ export default function BillPage({ params }: PageProps) {
             onDeleteItem={handleDeleteItem}
           />
         }
+        footer={
+          isOwner ? (
+            <Button
+              onClick={handleCalculate}
+              isLoading={isCalculating}
+              disabled={!allPerItemPurchasesBalanced}
+              className="w-full h-14 text-base font-semibold"
+            >
+              Hitung Pembagian
+            </Button>
+          ) : undefined
+        }
       />
-      {isOwner && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto px-4 pb-6">
-          {!allPerItemPurchasesBalanced && (
-            <p className="text-center text-xs text-red-500 mb-2">
-              Beberapa transaksi belum balance. Sesuaikan item atau diskon terlebih dahulu.
-            </p>
-          )}
-          <Button
-            onClick={handleCalculate}
-            isLoading={isCalculating}
-            disabled={!allPerItemPurchasesBalanced}
-            className="w-full h-14 text-base font-semibold"
-          >
-            Hitung Pembagian
-          </Button>
-        </div>
-      )}
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </>
   )

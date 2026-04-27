@@ -107,7 +107,7 @@ export function AddItemForm({
           participants={participants}
           selectedIds={selectedIds}
           onChange={handleSelectChange}
-          label="Siapa yang makan? (kosongkan = dibagi ke pemesan)"
+          label="Participants"
         />
       )}
       {selectedIds.length > 0 && (
@@ -138,7 +138,7 @@ export function AddItemForm({
         <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">
           Batal
         </Button>
-        <Button type="submit" isLoading={loading} disabled={!name.trim() || price <= 0 || !allQtysValid} className="flex-1">
+        <Button type="submit" isLoading={loading} disabled={!name.trim() || price <= 0 || selectedIds.length === 0 || !allQtysValid} className="flex-1">
           {submitLabel}
         </Button>
       </div>
