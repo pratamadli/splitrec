@@ -86,7 +86,7 @@ export default function BillPage({ params }: PageProps) {
 
   const handleAddItem = async (
     purchaseId: string,
-    data: { name: string; price: number; note: string | null; consumers: { participantId: string; quantity: number }[] }
+    data: { name: string; price: number; note: string | null; discount: number; consumers: { participantId: string; quantity: number }[] }
   ) => {
     try {
       await addItem(purchaseId, data)
@@ -97,7 +97,7 @@ export default function BillPage({ params }: PageProps) {
 
   const handleEditItem = async (
     itemId: string,
-    data: { name: string; price: number; note: string | null; consumers: { participantId: string; quantity: number }[] }
+    data: { name: string; price: number; note: string | null; discount: number; consumers: { participantId: string; quantity: number }[] }
   ) => {
     try {
       await updateItem(itemId, data)

@@ -31,8 +31,10 @@ function computeBreakdown(
       const myItems: Array<{ name: string; amount: number }> = []
 
       for (const item of purchase.items) {
+        const itemDiscount = item.discount ?? 0
         const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
-        const itemCost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
+        const rawCost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
+        const itemCost = r2(rawCost - itemDiscount)
         grandItemTotal = r2(grandItemTotal + itemCost)
 
         if (item.consumers.length === 0) {
@@ -43,7 +45,8 @@ function computeBreakdown(
         } else {
           const mine = item.consumers.find((c) => c.participant.id === participantId)
           if (mine) {
-            const amount = r2(item.price * mine.quantity)
+            const discountShare = consumerQtySum > 0 ? r2(itemDiscount * mine.quantity / consumerQtySum) : 0
+            const amount = r2(item.price * mine.quantity - discountShare)
             myItems.push({ name: item.name, amount })
             myItemTotal = r2(myItemTotal + amount)
           }
@@ -52,12 +55,10 @@ function computeBreakdown(
 
       const charges = purchase.charges
       if (charges) {
-        const { tax, serviceCharge, gratuity, discount, discountMode } = charges
+        const { tax, serviceCharge, gratuity, discount } = charges
         const others = Math.max(0, r2(purchase.totalAmount + discount - grandItemTotal - tax - serviceCharge - gratuity))
         const equalShare = r2((tax + serviceCharge + gratuity + others) / totalParticipants)
-        const discountShare = discountMode === 'item' && grandItemTotal > 0
-          ? r2((myItemTotal / grandItemTotal) * discount)
-          : r2(discount / totalParticipants)
+        const discountShare = r2(discount / totalParticipants)
 
         const total = r2(myItemTotal + equalShare - discountShare)
         if (myItems.length > 0 || equalShare > 0) {

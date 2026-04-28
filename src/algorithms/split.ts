@@ -20,6 +20,7 @@ export interface SplitInput {
       id: string
       price: number
       quantity: number
+      discount?: number
       consumers: { participantId: string; quantity: number }[]
     }[]
   }[]
@@ -65,14 +66,19 @@ export function calculateSplit(input: SplitInput): SplitOutput {
       for (const p of participants) itemConsumed[p.id] = 0
 
       for (const item of purchase.items) {
+        const itemDiscount = item.discount ?? 0
         if (item.consumers.length === 0) {
-          itemConsumed[purchase.paidBy] = round2(
-            (itemConsumed[purchase.paidBy] ?? 0) + item.price * item.quantity
-          )
+          const cost = round2(item.price * item.quantity - itemDiscount)
+          itemConsumed[purchase.paidBy] = round2((itemConsumed[purchase.paidBy] ?? 0) + cost)
         } else {
+          const totalConsumerQty = item.consumers.reduce((s, c) => s + c.quantity, 0)
           for (const consumer of item.consumers) {
+            const discountShare = totalConsumerQty > 0
+              ? round2(itemDiscount * consumer.quantity / totalConsumerQty)
+              : 0
+            const cost = round2(item.price * consumer.quantity - discountShare)
             itemConsumed[consumer.participantId] = round2(
-              (itemConsumed[consumer.participantId] ?? 0) + item.price * consumer.quantity
+              (itemConsumed[consumer.participantId] ?? 0) + cost
             )
           }
         }
@@ -80,19 +86,16 @@ export function calculateSplit(input: SplitInput): SplitOutput {
 
       const charges = purchase.charges
       if (charges) {
-        const { tax, serviceCharge, gratuity, discount, discountMode } = charges
+        const { tax, serviceCharge, gratuity, discount } = charges
         const itemTotal = Object.values(itemConsumed).reduce((s, v) => s + v, 0)
         const others = Math.max(
           0,
           purchase.totalAmount + discount - itemTotal - tax - serviceCharge - gratuity
         )
         const equalShare = round2((tax + serviceCharge + gratuity + others) / participants.length)
+        const discountShare = round2(discount / participants.length)
 
         for (const p of participants) {
-          const discountShare =
-            discountMode === 'item' && itemTotal > 0
-              ? round2(((itemConsumed[p.id] ?? 0) / itemTotal) * discount)
-              : round2(discount / participants.length)
           const amount = round2((itemConsumed[p.id] ?? 0) + equalShare - discountShare)
           consumed[p.id] = round2((consumed[p.id] ?? 0) + amount)
         }

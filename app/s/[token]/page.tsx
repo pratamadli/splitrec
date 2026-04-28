@@ -47,6 +47,7 @@ export default async function SharePage({ params }: PageProps) {
         name: item.name,
         price: Number(item.price),
         quantity: item.quantity,
+        discount: Number(item.discount ?? 0),
         note: item.note,
         consumers: item.consumers.map((c) => ({
           participant: { id: c.participant.id, name: c.participant.name },

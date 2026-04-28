@@ -12,7 +12,7 @@ import { formatIDR } from '@/src/lib/format'
 import type { PurchaseData, ParticipantData, PurchaseCharges } from '@/src/types/bill.types'
 
 type ItemConsumer = { participantId: string; quantity: number }
-type ItemFormData = { name: string; price: number; note: string | null; consumers: ItemConsumer[] }
+type ItemFormData = { name: string; price: number; note: string | null; discount: number; consumers: ItemConsumer[] }
 
 interface PurchaseCardProps {
   purchase: PurchaseData
@@ -34,8 +34,8 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 export function computeItemTotal(items: PurchaseData['items']): number {
   return r2(items.reduce((s, item) => {
     const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
-    const cost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
-    return r2(s + cost)
+    const rawCost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
+    return r2(s + rawCost - (item.discount ?? 0))
   }, 0))
 }
 
@@ -103,13 +103,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
     scheduleAutoSave(next)
   }
 
-  const setDiscountMode = (mode: 'equal' | 'item') => {
-    const next = { ...charges, discountMode: mode }
-    setCharges(next)
-    scheduleAutoSave(next)
-  }
-
-  const hasAnyCharge =
+const hasAnyCharge =
     purchase.charges &&
     (purchase.charges.tax > 0 ||
       purchase.charges.serviceCharge > 0 ||
@@ -131,7 +125,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
         {savedCharges.serviceCharge > 0 && <ChargesRow label="Service Charge" value={savedCharges.serviceCharge} />}
         {savedCharges.gratuity > 0 && <ChargesRow label="Gratuity" value={savedCharges.gratuity} />}
         {savedOthers > 0 && <ChargesRow label="Others" value={savedOthers} />}
-        {savedCharges.discount > 0 && <ChargesRow label={`Diskon (${savedCharges.discountMode === 'equal' ? 'rata' : 'per item'})`} value={-savedCharges.discount} />}
+        {savedCharges.discount > 0 && <ChargesRow label="Diskon" value={-savedCharges.discount} />}
       </div>
     )
   }
@@ -153,33 +147,6 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
         </div>
 
         <CurrencyInput label="Diskon" value={charges.discount} onChange={(v) => update('discount', v)} />
-
-        {charges.discount > 0 && (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setDiscountMode('equal')}
-              className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
-                charges.discountMode === 'equal'
-                  ? 'border-brand-blue bg-brand-blue/10 text-brand-blue font-semibold'
-                  : 'border-gray-200 text-gray-500'
-              }`}
-            >
-              Diskon Rata
-            </button>
-            <button
-              type="button"
-              onClick={() => setDiscountMode('item')}
-              className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
-                charges.discountMode === 'item'
-                  ? 'border-brand-blue bg-brand-blue/10 text-brand-blue font-semibold'
-                  : 'border-gray-200 text-gray-500'
-              }`}
-            >
-              Diskon Per Item
-            </button>
-          </div>
-        )}
 
         {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount) > r2(purchase.totalAmount) + 0.01 && (
           <p className="text-xs text-red-500 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
@@ -338,6 +305,7 @@ export function PurchaseCard({
                     name: item.name,
                     price: item.price,
                     note: item.note ?? '',
+                    discount: item.discount ?? 0,
                     consumers: item.consumers.map((c) => ({
                       participantId: c.participant.id,
                       quantity: c.quantity,

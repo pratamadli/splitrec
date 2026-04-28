@@ -18,10 +18,11 @@ export function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
           .map((c) => (c.quantity > 1 ? `${c.participant.name} (${c.quantity}×)` : c.participant.name))
           .join(', ')
 
-  const totalAmount =
+  const rawAmount =
     item.consumers.length === 0
       ? item.price * item.quantity
       : item.price * item.consumers.reduce((s, c) => s + c.quantity, 0)
+  const netAmount = rawAmount - (item.discount ?? 0)
 
   return (
     <div className="flex items-center gap-3 py-2.5 px-4 border-t border-gray-100">
@@ -29,8 +30,11 @@ export function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
         <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
         <p className="text-xs text-brand-gray truncate">{consumerNames}</p>
         {item.note && <p className="text-xs text-brand-gray italic">{item.note}</p>}
+        {(item.discount ?? 0) > 0 && (
+          <p className="text-xs text-brand-green">diskon {formatIDR(item.discount)}</p>
+        )}
       </div>
-      <p className="text-sm font-medium text-gray-700 shrink-0">{formatIDR(totalAmount)}</p>
+      <p className="text-sm font-medium text-gray-700 shrink-0">{formatIDR(netAmount)}</p>
       {onEdit && (
         <IconButton label="Edit item" onClick={onEdit}>
           ✏️

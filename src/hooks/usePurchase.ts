@@ -6,7 +6,7 @@ import { useDeviceId } from './useDeviceId'
 import type { BillData } from '@/src/types/bill.types'
 
 type ItemConsumer = { participantId: string; quantity: number }
-type ItemData = { name: string; price: number; note: string | null; consumers: ItemConsumer[] }
+type ItemData = { name: string; price: number; note: string | null; discount: number; consumers: ItemConsumer[] }
 
 export function usePurchase(billId: string, mutate: KeyedMutator<BillData>) {
   const deviceId = useDeviceId()
@@ -105,6 +105,7 @@ export function usePurchase(billId: string, mutate: KeyedMutator<BillData>) {
                         price: data.price,
                         quantity: 1,
                         note: data.note,
+                        discount: data.discount,
                         consumers: data.consumers.map(({ participantId, quantity }) => ({
                           participant: cur.participants.find((pt) => pt.id === participantId) ?? { id: participantId, name: '' },
                           quantity,

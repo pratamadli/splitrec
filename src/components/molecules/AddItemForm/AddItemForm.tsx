@@ -15,6 +15,7 @@ interface AddItemFormProps {
     name: string
     price: number
     note: string
+    discount: number
     consumers: ItemConsumer[]
   }
   submitLabel?: string
@@ -22,6 +23,7 @@ interface AddItemFormProps {
     name: string
     price: number
     note: string | null
+    discount: number
     consumers: ItemConsumer[]
   }) => Promise<void>
   onCancel: () => void
@@ -39,6 +41,7 @@ export function AddItemForm({
   const [price, setPrice] = useState(
     initialValues ? Math.round(initialValues.price * Math.max(initialTotalQty, 1)) : 0
   )
+  const [discount, setDiscount] = useState(initialValues?.discount ?? 0)
   const [note, setNote] = useState(initialValues?.note ?? '')
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initialValues?.consumers.map((c) => c.participantId) ?? []
@@ -78,7 +81,7 @@ export function AddItemForm({
       const consumers = selectedIds.map((id) => ({ participantId: id, quantity: parsedQtys[id] ?? 1 }))
       const totalQty = consumers.reduce((s, c) => s + c.quantity, 0)
       const pricePerPortion = price / Math.max(totalQty, 1)
-      await onSubmit({ name, price: pricePerPortion, note: note || null, consumers })
+      await onSubmit({ name, price: pricePerPortion, note: note || null, discount, consumers })
     } finally {
       setLoading(false)
     }
@@ -95,6 +98,7 @@ export function AddItemForm({
         required
       />
       <CurrencyInput label="Harga total" value={price} onChange={setPrice} />
+      <CurrencyInput label="Diskon item (opsional)" value={discount} onChange={setDiscount} />
       <Input
         label="Catatan (opsional)"
         value={note}

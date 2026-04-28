@@ -14,15 +14,18 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!isOwner) return apiError('Forbidden', 403)
 
     const body = await request.json()
-    const { name, price, note, consumers } = body as {
+    const { name, price, note, consumers, discount } = body as {
       name?: string
       price?: number
       note?: string | null
+      discount?: number
       consumers?: { participantId: string; quantity: number }[]
     }
 
     if (price !== undefined && price <= 0)
       return apiError('price must be positive', 400, { field: 'price' })
+    if (discount !== undefined && discount < 0)
+      return apiError('discount cannot be negative', 400, { field: 'discount' })
 
     if (consumers !== undefined) {
       for (const consumer of consumers) {
@@ -31,12 +34,13 @@ export async function PATCH(request: Request, { params }: Params) {
       }
     }
 
-    const item = await updateItem(id, { name, price, note, consumers })
+    const item = await updateItem(id, { name, price, note, discount, consumers })
     return NextResponse.json({
       id: item.id,
       name: item.name,
       price: Number(item.price),
       quantity: item.quantity,
+      discount: Number(item.discount ?? 0),
       note: item.note,
     })
   } catch {
