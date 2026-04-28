@@ -10,7 +10,7 @@ import { cn } from '@/src/lib/cn'
 import type { BillData } from '@/src/types/bill.types'
 
 type ItemConsumer = { participantId: string; quantity: number }
-type ItemFormData = { name: string; price: number; note: string | null; consumers: ItemConsumer[] }
+type ItemFormData = { name: string; price: number; note: string | null; discount: number; consumers: ItemConsumer[] }
 
 interface PurchaseListProps {
   bill: BillData

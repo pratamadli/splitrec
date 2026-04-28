@@ -7,11 +7,12 @@ export async function addItem(
   name: string,
   price: number,
   note: string | null,
-  consumers: { participantId: string; quantity: number }[]
+  consumers: { participantId: string; quantity: number }[],
+  discount = 0
 ) {
   const [item] = await db
     .insert(items)
-    .values({ purchaseId, name: name.trim(), price: String(price), quantity: 1, note })
+    .values({ purchaseId, name: name.trim(), price: String(price), quantity: 1, note, discount: String(discount) })
     .returning()
 
   if (consumers.length > 0) {
@@ -29,6 +30,7 @@ export async function updateItem(
     name: string
     price: number
     note: string | null
+    discount: number
     consumers: { participantId: string; quantity: number }[]
   }>
 ) {
@@ -36,6 +38,7 @@ export async function updateItem(
   if (data.name !== undefined) set.name = data.name.trim()
   if (data.price !== undefined) set.price = String(data.price)
   if (data.note !== undefined) set.note = data.note
+  if (data.discount !== undefined) set.discount = String(data.discount)
 
   if (Object.keys(set).length > 0) {
     await db.update(items).set(set).where(eq(items.id, id))

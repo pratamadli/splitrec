@@ -12,6 +12,7 @@ import { BillHeader } from '@/src/components/organisms/BillHeader'
 import { BillSummary } from '@/src/components/organisms/BillSummary'
 import { ParticipantList } from '@/src/components/organisms/ParticipantList'
 import { PurchaseList } from '@/src/components/organisms/PurchaseList'
+import { computeItemTotal } from '@/src/components/organisms/PurchaseCard'
 import { Button } from '@/src/components/atoms/Button'
 import { ToastContainer } from '@/src/components/atoms/Toast'
 import { Spinner } from '@/src/components/atoms/Spinner'
@@ -85,7 +86,7 @@ export default function BillPage({ params }: PageProps) {
 
   const handleAddItem = async (
     purchaseId: string,
-    data: { name: string; price: number; note: string | null; consumers: { participantId: string; quantity: number }[] }
+    data: { name: string; price: number; note: string | null; discount: number; consumers: { participantId: string; quantity: number }[] }
   ) => {
     try {
       await addItem(purchaseId, data)
@@ -96,7 +97,7 @@ export default function BillPage({ params }: PageProps) {
 
   const handleEditItem = async (
     itemId: string,
-    data: { name: string; price: number; note: string | null; consumers: { participantId: string; quantity: number }[] }
+    data: { name: string; price: number; note: string | null; discount: number; consumers: { participantId: string; quantity: number }[] }
   ) => {
     try {
       await updateItem(itemId, data)
@@ -112,6 +113,14 @@ export default function BillPage({ params }: PageProps) {
       addToast('Gagal menghapus item', 'error')
     }
   }
+
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  const allPerItemPurchasesBalanced = !bill || bill.purchases.every((purchase) => {
+    if (purchase.items.length === 0) return true
+    const charges = purchase.charges ?? { tax: 0, serviceCharge: 0, gratuity: 0, discount: 0 }
+    const net = r2(computeItemTotal(purchase.items) + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount)
+    return net <= r2(purchase.totalAmount) + 0.01
+  })
 
   if (isLoading) {
     return (
@@ -160,18 +169,19 @@ export default function BillPage({ params }: PageProps) {
             onDeleteItem={handleDeleteItem}
           />
         }
+        footer={
+          isOwner ? (
+            <Button
+              onClick={handleCalculate}
+              isLoading={isCalculating}
+              disabled={!allPerItemPurchasesBalanced}
+              className="w-full h-14 text-base font-semibold"
+            >
+              Hitung Pembagian
+            </Button>
+          ) : undefined
+        }
       />
-      {isOwner && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto px-4 pb-6">
-          <Button
-            onClick={handleCalculate}
-            isLoading={isCalculating}
-            className="w-full h-14 text-base font-semibold"
-          >
-            Hitung Pembagian
-          </Button>
-        </div>
-      )}
       <ToastContainer toasts={toasts} onDismiss={dismiss} />
     </>
   )

@@ -28,6 +28,7 @@ export async function POST(request: Request, { params }: Params) {
           id: item.id,
           price: Number(item.price),
           quantity: item.quantity,
+          discount: Number(item.discount ?? 0),
           consumers: item.consumers.map((c) => ({ participantId: c.participantId, quantity: c.quantity })),
         })),
       })),

@@ -2,7 +2,7 @@
 
 > **Tagline:** Split receipts, not friendships.
 > **Status:** Pre-development · MVP phase
-> **Last updated:** 2026-04-27
+> **Last updated:** 2026-04-28
 > **Sources:** Planning sessions + PRD (MVP) + Product Guide + Database schema review + Brand logo (splitrec_logo.png)
 
 ---
@@ -399,6 +399,7 @@ name          text NOT NULL
 price         numeric(15,2) NOT NULL
 quantity      integer NOT NULL DEFAULT 1
 note          text
+discount      numeric(15,2) NOT NULL DEFAULT 0   -- per-item discount total (shared among consumers proportionally)
 
 -- item_consumers (composite PK prevents duplicates at DB level)
 item_id        uuid NOT NULL REFERENCES items(id) ON DELETE CASCADE
@@ -463,7 +464,9 @@ CREATE UNIQUE INDEX ON feature_flags(device_id, feature);
 | `item_consumers` PK | Composite `(item_id, participant_id)` | Prevents duplicates at DB level |
 | `item_consumers.quantity` | Per-consumer integer (default 1) | Each person can consume a different number of units of the same item |
 | `items.quantity` | Always 1 when consumers assigned | Only meaningful when consumers is empty (fallback equal-split uses it) |
+| `items.discount` | `numeric(15,2)` NOT NULL DEFAULT 0 | Per-item discount total. Distributed proportionally among consumers by their qty share. Applied before charges calculation. Migration: `0003_item_discount.sql`. |
 | `purchases.charges` | JSONB, nullable | Stores per-purchase additional charges. Null = no charges. Never stored as a separate table — it's always loaded with the purchase. |
+| `purchases.charges.discountMode` | Always `'equal'` going forward | `'item'` mode removed from UI; field kept in JSONB for backward compat with existing data. |
 | `debts` | Fully replaced on `/calculate` | Computed result, not a ledger |
 | `settlements` | In schema, unused in MVP | Zero-migration activation for payment later |
 | `events` | Always async, never awaited | Failure must never affect user flow |
@@ -527,6 +530,7 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
     payer: { id, name },
     items: [{
       id, name, price, quantity, note,
+      discount: number,   // per-item discount total
       consumers: [{ participant: { id, name }, quantity: number }]
     }]
   }],
@@ -560,9 +564,15 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
 **POST `/api/purchases/[id]/items`**
 ```ts
 // Body
-{ name: string, price: number, note?: string, consumers: { participantId: string, quantity: number }[] }
-// consumers empty → cost goes to purchase payer (equal-split fallback)
-// consumers non-empty → each person pays price × their own quantity
+{
+  name: string,
+  price: number,
+  note?: string,
+  discount?: number,   // per-item discount total (default 0)
+  consumers: { participantId: string, quantity: number }[]
+}
+// consumers REQUIRED — at least 1 consumer must be specified
+// each consumer pays: (price × consumerQty) − proportional share of item discount
 ```
 
 **PATCH `/api/purchases/[id]`**
@@ -576,8 +586,8 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
     tax: number
     serviceCharge: number
     gratuity: number
-    discount: number
-    discountMode: 'equal' | 'item'
+    discount: number          // global discount — always split equally
+    discountMode: 'equal'     // only 'equal' used; 'item' mode removed from UI
   } | null
 }
 ```
@@ -585,7 +595,7 @@ Server fetches `bills.device_id` and compares. Never trust `billId` from request
 **PATCH `/api/items/[id]`**
 ```ts
 // Body (all fields optional)
-{ name?: string, price?: number, note?: string | null, consumers?: { participantId: string, quantity: number }[] }
+{ name?: string, price?: number, note?: string | null, discount?: number, consumers?: { participantId: string, quantity: number }[] }
 ```
 
 ---
@@ -622,8 +632,9 @@ balance[p]  = paid[p] - share
 
 ```
 1. For each item:
-   if consumers is empty → assign full cost (price × quantity) to purchase payer
-   if consumers non-empty → each consumer pays round(price × consumer.quantity, 2)
+   effectiveCost = (price × sum(consumer.quantity)) − item.discount
+   each consumer pays: round(effectiveCost × (consumer.quantity / totalQty), 2)
+   -- consumers always required; empty consumers is a legacy fallback only
 
 2. paid[p]     = sum of purchase.totalAmount where paidBy === p
    consumed[p] = sum of all item amounts assigned to p
@@ -635,20 +646,21 @@ balance[p]  = paid[p] - share
 When a per-item purchase has `charges` set:
 
 ```
-itemTotal     = sum over items of (price × sum(consumer.quantity))
-                  -- if consumers empty: price × item.quantity
-others (auto) = max(0, totalAmount + discount - itemTotal - tax - serviceCharge - gratuity)
+effectiveItemTotal = sum over items of (price × sum(consumer.quantity) − item.discount)
+others (auto)      = max(0, totalAmount + globalDiscount − effectiveItemTotal − tax − serviceCharge − gratuity)
 
 For each participant p:
   equalShare    = round((tax + serviceCharge + gratuity + others) / participants.length, 2)
-  discountShare = if discountMode === 'item' && itemTotal > 0:
-                    round((itemConsumed[p] / itemTotal) × discount, 2)
-                  else:
-                    round(discount / participants.length, 2)
-  consumed[p]   = round(itemConsumed[p] + equalShare - discountShare, 2)
+  discountShare = round(globalDiscount / participants.length, 2)   -- always equal split
+  consumed[p]   = round(itemConsumed[p] + equalShare − discountShare, 2)
 ```
 
-`others` is auto-calculated (not stored) — it absorbs any rounding residuals between `totalAmount` and the sum of explicit charges. Tax/service/gratuity/others are always split equally. Discount is split equally (`discountMode: 'equal'`) or proportionally to item consumption (`discountMode: 'item'`).
+`others` is auto-calculated (not stored) — absorbs the gap between `totalAmount` and the sum of effective item costs + explicit charges.  
+**Two discount types:**
+- **Per-item discount** (`items.discount`) — deducted from an item's total cost before distributing among that item's consumers.
+- **Global discount** (`purchases.charges.discount`) — always divided equally among all participants. `discountMode` field kept in schema for backward compat but UI only ever writes `'equal'`.
+
+**Balance enforcement:** `effectiveItemTotal + tax + serviceCharge + gratuity − globalDiscount` must not exceed `totalAmount`. If `others` would go negative (items + charges > total + globalDiscount), the UI auto-populates the global discount field with the excess and blocks "Hitung Pembagian" until all per-item purchases are balanced.
 
 ### Settlement (both modes)
 
@@ -671,8 +683,8 @@ export interface PurchaseCharges {
   tax: number
   serviceCharge: number
   gratuity: number
-  discount: number
-  discountMode: 'equal' | 'item'
+  discount: number          // global discount — always equal split
+  discountMode: 'equal' | 'item'  // kept for backward compat; UI always writes 'equal'
 }
 
 export interface SplitInput {
@@ -686,7 +698,8 @@ export interface SplitInput {
     items: {
       id: string
       price: number          // per-portion price = totalItemCost / sum(consumer.quantity)
-      quantity: number       // only used when consumers is empty (fallback)
+      quantity: number       // fallback when consumers empty (legacy)
+      discount?: number      // per-item discount total (distributed proportionally among consumers)
       consumers: { participantId: string; quantity: number }[]
     }[]
   }[]
@@ -922,7 +935,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 14. Development Roadmap
 
-> **Status terakhir diupdate:** 2026-04-27
+> **Status terakhir diupdate:** 2026-04-28
 > **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
 > **Favicon:** Sudah fix — `app/icon.png` (copy dari `logo-icon.png`), Next.js 13+ otomatis pakai sebagai favicon. `public/favicon.ico` lama tidak perlu dihapus.
@@ -1005,6 +1018,16 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] **Charges tidak retain saat navigasi Edit → Result → Edit** — Diatasi oleh auto-save charges (debounce 800ms). Charges tersimpan otomatis tanpa perlu klik tombol.
 - [x] **BillSummary crash saat bill baru dibuat** — `purchases ?? []` sebagai fallback defensif. Root cause: SWR fetcher tidak throw saat response non-OK, body error tersimpan sebagai `data`.
 
+**Phase 3 post-release features (2026-04-28) — v1.3.0: Per-item discount + balance enforcement + UX polish:**
+- [x] **DB migration `0003_item_discount.sql`** — `discount numeric(15,2) NOT NULL DEFAULT 0` ditambah ke tabel `items`. Applied via Neon Serverless HTTP ke dev dan production.
+- [x] **Per-item discount** — `ItemData.discount: number` di types. `AddItemForm` punya field "Diskon item (opsional)". `ItemRow` menampilkan baris diskon jika > 0. Service, API POST/PATCH, dan GET bill route semua pass-through `discount`.
+- [x] **Algorithm update** — per-item discount dikurangi dari cost item sebelum didistribusikan ke consumers secara proporsional. Global discount (`charges.discount`) sekarang selalu equal split — logika `discountMode: 'item'` dihapus dari UI (field tetap ada di schema untuk backward compat).
+- [x] **Hapus toggle Diskon Rata / Diskon Per Item** — toggle buttons di `ChargesPanel` dihapus. Global discount selalu equal split. Non-owner label juga disederhanakan dari `Diskon (rata/per item)` → `Diskon`.
+- [x] **Balance enforcement** — `computeItemTotal` di-extract ke module-level dan di-export dari `PurchaseCard`. `ChargesPanel` auto-populate `charges.discount` jika `effectiveItemTotal + charges > totalAmount`. Alert inline muncul di bawah baris diskon jika transaksi masih unbalanced. Tombol "Hitung Pembagian" disabled sampai semua per-item transaksi balanced.
+- [x] **Participants required** — Label "Siapa yang makan? (kosongkan = dibagi ke pemesan)" → "Participants". Submit item diblokir jika belum memilih minimal 1 participant.
+- [x] **Button tidak sticky** — "Hitung Pembagian" dipindah dari `fixed bottom-0` ke slot `footer` di `BillEditLayout`. `pb-24` → `pb-8`. Template `BillEditLayout` dapat prop `footer?: ReactNode`.
+- [x] **SettlementResult breakdown update** — `computeBreakdown` menyertakan per-item discount dalam kalkulasi share per peserta (dikurangi proporsional sesuai qty konsumer).
+
 **Done when:** Create, fill, share — friend views result on phone. Link preview shows logo.
 
 ---
@@ -1023,10 +1046,11 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.1.x di browser — jalankan `pnpm dev`, test: buat tagihan per item → tambah peserta → tambah item dengan qty berbeda → isi charges (pajak/service/gratuity/diskon) → tunggu auto-save → klik "Hitung Pembagian" → halaman result → cek breakdown per peserta → tombol "Buat Tagihan Baru"
-2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — test ChargesPanel, qty input, CurrencyInput, badge per transaksi
-3. **[HARUS DILAKUKAN MANUAL]** Test share page — pastikan halaman `/s/[token]` menampilkan charges (pajak, service, dll) dengan benar untuk non-owner view
-4. Setelah mobile audit: Phase 4 (SEO, analytics, AdSense)
+1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.3.0 di browser — jalankan `pnpm dev`, test: buat tagihan per item → tambah peserta → tambah item (dengan qty berbeda + diskon item) → isi charges (pajak/service/gratuity/diskon) → cek auto-populate diskon jika melebihi total → tunggu auto-save → klik "Hitung Pembagian" → halaman result → cek breakdown per peserta
+2. **[HARUS DILAKUKAN MANUAL]** Test balance enforcement — coba input item yang totalnya melebihi nilai transaksi, pastikan: (a) diskon auto-fill, (b) alert muncul di bawah baris diskon, (c) button disabled sampai balance
+3. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — test ChargesPanel, field diskon item di AddItemForm, ItemRow dengan discount badge, button non-sticky
+4. **[HARUS DILAKUKAN MANUAL]** Test share page — pastikan halaman `/s/[token]` menampilkan charges dan per-item discount dengan benar untuk non-owner view
+5. Setelah mobile audit: Phase 4 (SEO, analytics, AdSense)
 
 ---
 

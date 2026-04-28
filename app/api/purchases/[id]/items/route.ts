@@ -14,23 +14,25 @@ export async function POST(request: Request, { params }: Params) {
     if (!isOwner) return apiError('Forbidden', 403)
 
     const body = await request.json()
-    const { name, price, note = null, consumers = [] } = body as {
+    const { name, price, note = null, consumers = [], discount = 0 } = body as {
       name?: string
       price?: number
       note?: string | null
       consumers?: { participantId: string; quantity: number }[]
+      discount?: number
     }
 
     if (!name?.trim()) return apiError('name is required', 400, { field: 'name' })
     if (!price || price <= 0) return apiError('price must be positive', 400, { field: 'price' })
     if (price > 999_999_999.99) return apiError('price too large', 400, { field: 'price' })
+    if (discount < 0) return apiError('discount cannot be negative', 400, { field: 'discount' })
 
     for (const consumer of consumers) {
       if (!Number.isInteger(consumer.quantity) || consumer.quantity < 1 || consumer.quantity > 999)
         return apiError('consumer quantity must be 1–999', 400, { field: 'consumers' })
     }
 
-    const item = await addItem(id, name, price, note, consumers)
+    const item = await addItem(id, name, price, note, consumers, discount)
     return NextResponse.json(
       { id: item.id, name: item.name, price: Number(item.price), quantity: item.quantity, note: item.note },
       { status: 201 }

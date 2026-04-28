@@ -1,1 +1,1 @@
-export { PurchaseCard } from './PurchaseCard'
+export { PurchaseCard, computeItemTotal } from './PurchaseCard'

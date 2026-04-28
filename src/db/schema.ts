@@ -76,6 +76,7 @@ export const items = pgTable(
     price: numeric('price', { precision: 15, scale: 2 }).notNull(),
     quantity: integer('quantity').notNull().default(1),
     note: text('note'),
+    discount: numeric('discount', { precision: 15, scale: 2 }).notNull().default('0'),
   },
   (t) => [index('items_purchase_id_idx').on(t.purchaseId)]
 )

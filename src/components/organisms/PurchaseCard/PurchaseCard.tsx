@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { PurchaseHeader } from '@/src/components/molecules/PurchaseHeader'
 import { ItemRow } from '@/src/components/molecules/ItemRow'
 import { AddItemForm } from '@/src/components/molecules/AddItemForm'
@@ -12,7 +12,7 @@ import { formatIDR } from '@/src/lib/format'
 import type { PurchaseData, ParticipantData, PurchaseCharges } from '@/src/types/bill.types'
 
 type ItemConsumer = { participantId: string; quantity: number }
-type ItemFormData = { name: string; price: number; note: string | null; consumers: ItemConsumer[] }
+type ItemFormData = { name: string; price: number; note: string | null; discount: number; consumers: ItemConsumer[] }
 
 interface PurchaseCardProps {
   purchase: PurchaseData
@@ -27,6 +27,16 @@ interface PurchaseCardProps {
   onAddItem: (purchaseId: string, data: ItemFormData) => Promise<void>
   onEditItem: (itemId: string, data: ItemFormData) => Promise<void>
   onDeleteItem: (itemId: string) => Promise<void>
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100
+
+export function computeItemTotal(items: PurchaseData['items']): number {
+  return r2(items.reduce((s, item) => {
+    const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
+    const rawCost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
+    return r2(s + rawCost - (item.discount ?? 0))
+  }, 0))
 }
 
 const EMPTY_CHARGES: PurchaseCharges = {
@@ -51,30 +61,41 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
   )
   const [saving, setSaving] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onSaveRef = useRef(onSave)
+  useEffect(() => { onSaveRef.current = onSave })
 
   // Re-sync if purchase.charges changes externally (e.g. after revalidation)
   useEffect(() => {
     setCharges(purchase.charges ?? { ...EMPTY_CHARGES })
   }, [purchase.charges])
 
-  const r2 = (n: number) => Math.round(n * 100) / 100
-  const itemTotal = r2(purchase.items.reduce((s, item) => {
-    const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
-    const cost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
-    return r2(s + cost)
-  }, 0))
+  const itemTotal = computeItemTotal(purchase.items)
   const others = Math.max(
     0,
     r2(purchase.totalAmount + charges.discount - itemTotal - charges.tax - charges.serviceCharge - charges.gratuity)
   )
 
-  const scheduleAutoSave = (next: PurchaseCharges) => {
+  const scheduleAutoSave = useCallback((next: PurchaseCharges) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       setSaving(true)
-      try { await onSave(next) } finally { setSaving(false) }
+      try { await onSaveRef.current(next) } finally { setSaving(false) }
     }, 800)
-  }
+  }, [])
+
+  // Auto-populate discount when items + charges exceed totalAmount
+  useEffect(() => {
+    const currentItemTotal = computeItemTotal(purchase.items)
+    setCharges(prev => {
+      const excess = r2(currentItemTotal + prev.tax + prev.serviceCharge + prev.gratuity - purchase.totalAmount)
+      if (excess > 0 && prev.discount < excess) {
+        const next = { ...prev, discount: excess }
+        scheduleAutoSave(next)
+        return next
+      }
+      return prev
+    })
+  }, [purchase.items, purchase.totalAmount, scheduleAutoSave])
 
   const update = (key: keyof Omit<PurchaseCharges, 'discountMode'>, value: number) => {
     const next = { ...charges, [key]: value }
@@ -82,13 +103,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
     scheduleAutoSave(next)
   }
 
-  const setDiscountMode = (mode: 'equal' | 'item') => {
-    const next = { ...charges, discountMode: mode }
-    setCharges(next)
-    scheduleAutoSave(next)
-  }
-
-  const hasAnyCharge =
+const hasAnyCharge =
     purchase.charges &&
     (purchase.charges.tax > 0 ||
       purchase.charges.serviceCharge > 0 ||
@@ -98,11 +113,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
   if (!isOwner) {
     if (!hasAnyCharge) return null
     const savedCharges = purchase.charges!
-    const savedItemTotal = r2(purchase.items.reduce((s, item) => {
-      const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
-      const cost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
-      return r2(s + cost)
-    }, 0))
+    const savedItemTotal = computeItemTotal(purchase.items)
     const savedOthers = Math.max(
       0,
       r2(purchase.totalAmount + savedCharges.discount - savedItemTotal - savedCharges.tax - savedCharges.serviceCharge - savedCharges.gratuity)
@@ -114,7 +125,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
         {savedCharges.serviceCharge > 0 && <ChargesRow label="Service Charge" value={savedCharges.serviceCharge} />}
         {savedCharges.gratuity > 0 && <ChargesRow label="Gratuity" value={savedCharges.gratuity} />}
         {savedOthers > 0 && <ChargesRow label="Others" value={savedOthers} />}
-        {savedCharges.discount > 0 && <ChargesRow label={`Diskon (${savedCharges.discountMode === 'equal' ? 'rata' : 'per item'})`} value={-savedCharges.discount} />}
+        {savedCharges.discount > 0 && <ChargesRow label="Diskon" value={-savedCharges.discount} />}
       </div>
     )
   }
@@ -137,31 +148,10 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
 
         <CurrencyInput label="Diskon" value={charges.discount} onChange={(v) => update('discount', v)} />
 
-        {charges.discount > 0 && (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setDiscountMode('equal')}
-              className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
-                charges.discountMode === 'equal'
-                  ? 'border-brand-blue bg-brand-blue/10 text-brand-blue font-semibold'
-                  : 'border-gray-200 text-gray-500'
-              }`}
-            >
-              Diskon Rata
-            </button>
-            <button
-              type="button"
-              onClick={() => setDiscountMode('item')}
-              className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
-                charges.discountMode === 'item'
-                  ? 'border-brand-blue bg-brand-blue/10 text-brand-blue font-semibold'
-                  : 'border-gray-200 text-gray-500'
-              }`}
-            >
-              Diskon Per Item
-            </button>
-          </div>
+        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount) > r2(purchase.totalAmount) + 0.01 && (
+          <p className="text-xs text-red-500 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
+            Transaksi belum balance. Tambah diskon atau kurangi nilai item/biaya.
+          </p>
         )}
       </div>
     </div>
@@ -315,6 +305,7 @@ export function PurchaseCard({
                     name: item.name,
                     price: item.price,
                     note: item.note ?? '',
+                    discount: item.discount ?? 0,
                     consumers: item.consumers.map((c) => ({
                       participantId: c.participant.id,
                       quantity: c.quantity,

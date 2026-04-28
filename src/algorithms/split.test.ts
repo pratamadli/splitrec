@@ -16,8 +16,9 @@ const item = (
   id: string,
   price: number,
   quantity: number,
-  consumers: { participantId: string; quantity: number }[]
-) => ({ id, price, quantity, consumers })
+  consumers: { participantId: string; quantity: number }[],
+  discount = 0
+) => ({ id, price, quantity, discount, consumers })
 
 describe('calculateSplit — equal mode', () => {
   it('splits evenly among all participants', () => {

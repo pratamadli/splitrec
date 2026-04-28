@@ -15,6 +15,7 @@ interface AddItemFormProps {
     name: string
     price: number
     note: string
+    discount: number
     consumers: ItemConsumer[]
   }
   submitLabel?: string
@@ -22,6 +23,7 @@ interface AddItemFormProps {
     name: string
     price: number
     note: string | null
+    discount: number
     consumers: ItemConsumer[]
   }) => Promise<void>
   onCancel: () => void
@@ -39,6 +41,7 @@ export function AddItemForm({
   const [price, setPrice] = useState(
     initialValues ? Math.round(initialValues.price * Math.max(initialTotalQty, 1)) : 0
   )
+  const [discount, setDiscount] = useState(initialValues?.discount ?? 0)
   const [note, setNote] = useState(initialValues?.note ?? '')
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initialValues?.consumers.map((c) => c.participantId) ?? []
@@ -78,7 +81,7 @@ export function AddItemForm({
       const consumers = selectedIds.map((id) => ({ participantId: id, quantity: parsedQtys[id] ?? 1 }))
       const totalQty = consumers.reduce((s, c) => s + c.quantity, 0)
       const pricePerPortion = price / Math.max(totalQty, 1)
-      await onSubmit({ name, price: pricePerPortion, note: note || null, consumers })
+      await onSubmit({ name, price: pricePerPortion, note: note || null, discount, consumers })
     } finally {
       setLoading(false)
     }
@@ -95,6 +98,7 @@ export function AddItemForm({
         required
       />
       <CurrencyInput label="Harga total" value={price} onChange={setPrice} />
+      <CurrencyInput label="Diskon item (opsional)" value={discount} onChange={setDiscount} />
       <Input
         label="Catatan (opsional)"
         value={note}
@@ -107,7 +111,7 @@ export function AddItemForm({
           participants={participants}
           selectedIds={selectedIds}
           onChange={handleSelectChange}
-          label="Siapa yang makan? (kosongkan = dibagi ke pemesan)"
+          label="Participants"
         />
       )}
       {selectedIds.length > 0 && (
@@ -138,7 +142,7 @@ export function AddItemForm({
         <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">
           Batal
         </Button>
-        <Button type="submit" isLoading={loading} disabled={!name.trim() || price <= 0 || !allQtysValid} className="flex-1">
+        <Button type="submit" isLoading={loading} disabled={!name.trim() || price <= 0 || selectedIds.length === 0 || !allQtysValid} className="flex-1">
           {submitLabel}
         </Button>
       </div>
