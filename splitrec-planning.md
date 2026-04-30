@@ -2,7 +2,7 @@
 
 > **Tagline:** Split receipts, not friendships.
 > **Status:** Pre-development · MVP phase
-> **Last updated:** 2026-04-28
+> **Last updated:** 2026-04-30
 > **Sources:** Planning sessions + PRD (MVP) + Product Guide + Database schema review + Brand logo (splitrec_logo.png)
 
 ---
@@ -936,7 +936,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 ## 14. Development Roadmap
 
 > **Status terakhir diupdate:** 2026-04-28
-> **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4
+> **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4 · @vercel/analytics 2.0.1 · @vercel/speed-insights 2.0.0
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
 > **Favicon:** Sudah fix — `app/icon.png` (copy dari `logo-icon.png`), Next.js 13+ otomatis pakai sebagai favicon. `public/favicon.ico` lama tidak perlu dihapus.
 > **API verified:** Semua endpoint ditest via curl dan hasilnya benar — item split, equal split, share token, ownership 403 check.
@@ -1017,6 +1017,10 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [x] **Qty per orang tidak bisa dihapus** — `qtys` state di `AddItemForm` diganti dari `Record<string, number>` ke `Record<string, string>`. User bisa hapus angka dan isi ulang. Submit diblokir jika ada qty < 1.
 - [x] **Charges tidak retain saat navigasi Edit → Result → Edit** — Diatasi oleh auto-save charges (debounce 800ms). Charges tersimpan otomatis tanpa perlu klik tombol.
 - [x] **BillSummary crash saat bill baru dibuat** — `purchases ?? []` sebagai fallback defensif. Root cause: SWR fetcher tidak throw saat response non-OK, body error tersimpan sebagai `data`.
+
+**Phase 3 post-release patch (2026-04-30) — v1.3.1: Vercel Analytics & Speed Insights:**
+- [x] **Vercel Analytics** — `@vercel/analytics` ditambah. `<Analytics />` di-render di `app/layout.tsx`. Page views + visitor data otomatis terkirim ke Vercel dashboard saat production. Dev mode tidak mengirim data ke dashboard.
+- [x] **Speed Insights** — `@vercel/speed-insights` ditambah. `<SpeedInsights />` di-render di `app/layout.tsx`. Core Web Vitals (LCP, FID, CLS) dilacak otomatis saat deployed ke Vercel. Tidak perlu env variable apapun.
 
 **Phase 3 post-release features (2026-04-28) — v1.3.0: Per-item discount + balance enforcement + UX polish:**
 - [x] **DB migration `0003_item_discount.sql`** — `discount numeric(15,2) NOT NULL DEFAULT 0` ditambah ke tabel `items`. Applied via Neon Serverless HTTP ke dev dan production.
