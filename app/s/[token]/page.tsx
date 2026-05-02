@@ -35,7 +35,7 @@ export default async function SharePage({ params }: PageProps) {
     currency: raw.currency,
     createdAt: raw.createdAt instanceof Date ? raw.createdAt.toISOString() : String(raw.createdAt),
     updatedAt: raw.updatedAt instanceof Date ? raw.updatedAt.toISOString() : String(raw.updatedAt),
-    participants: raw.participants.map((p) => ({ id: p.id, name: p.name })),
+    participants: raw.participants.map((p) => ({ id: p.id, name: p.name, bankName: p.bankName, bankAccount: p.bankAccount })),
     purchases: raw.purchases.map((p) => ({
       id: p.id,
       title: p.title,
