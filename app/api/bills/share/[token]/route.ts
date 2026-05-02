@@ -17,7 +17,7 @@ export async function GET(_: Request, { params }: Params) {
       splitMode: bill.splitMode,
       currency: bill.currency,
       createdAt: bill.createdAt,
-      participants: bill.participants.map((p) => ({ id: p.id, name: p.name })),
+      participants: bill.participants.map((p) => ({ id: p.id, name: p.name, bankName: p.bankName, bankAccount: p.bankAccount })),
       purchases: bill.purchases.map((p) => ({
         id: p.id,
         title: p.title,
