@@ -86,18 +86,27 @@ export function calculateSplit(input: SplitInput): SplitOutput {
 
       const charges = purchase.charges
       if (charges) {
-        const { tax, serviceCharge, gratuity, discount } = charges
-        const itemTotal = Object.values(itemConsumed).reduce((s, v) => s + v, 0)
-        const others = Math.max(
-          0,
-          purchase.totalAmount + discount - itemTotal - tax - serviceCharge - gratuity
-        )
-        const equalShare = round2((tax + serviceCharge + gratuity + others) / participants.length)
-        const discountShare = round2(discount / participants.length)
+        const itemTotal = round2(Object.values(itemConsumed).reduce((s, v) => s + v, 0))
+        // Each person pays proportionally: their items / total items × total paid.
+        // chargesTotal = total gap to distribute (includes others, sc, tax, gratuity, minus discount).
+        const chargesTotal = round2(purchase.totalAmount - itemTotal)
 
-        for (const p of participants) {
-          const amount = round2((itemConsumed[p.id] ?? 0) + equalShare - discountShare)
-          consumed[p.id] = round2((consumed[p.id] ?? 0) + amount)
+        if (itemTotal > 0) {
+          // Proportional split: only participants with items in this purchase are charged.
+          for (const p of participants) {
+            const myItems = itemConsumed[p.id] ?? 0
+            if (myItems > 0) {
+              const weight = myItems / itemTotal
+              const amount = round2(myItems + round2(weight * chargesTotal))
+              consumed[p.id] = round2((consumed[p.id] ?? 0) + amount)
+            }
+          }
+        } else {
+          // No items tracked — equal split of totalAmount among all participants
+          const share = round2(purchase.totalAmount / participants.length)
+          for (const p of participants) {
+            consumed[p.id] = round2((consumed[p.id] ?? 0) + share)
+          }
         }
       } else {
         for (const p of participants) {

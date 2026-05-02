@@ -3,6 +3,8 @@ export type SplitMode = 'equal' | 'item'
 export interface ParticipantData {
   id: string
   name: string
+  bankName?: string | null
+  bankAccount?: string | null
 }
 
 export interface ItemData {

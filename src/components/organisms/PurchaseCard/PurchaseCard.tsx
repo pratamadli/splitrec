@@ -33,9 +33,18 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 
 export function computeItemTotal(items: PurchaseData['items']): number {
   return r2(items.reduce((s, item) => {
+    const itemDiscount = item.discount ?? 0
+    if (item.consumers.length === 0) {
+      return r2(s + r2(item.price * item.quantity - itemDiscount))
+    }
+    // Mirror split.ts: sum per-consumer rounded costs
     const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
-    const rawCost = consumerQtySum > 0 ? r2(item.price * consumerQtySum) : r2(item.price * item.quantity)
-    return r2(s + rawCost - (item.discount ?? 0))
+    let itemSum = 0
+    for (const c of item.consumers) {
+      const ds = consumerQtySum > 0 ? r2(itemDiscount * c.quantity / consumerQtySum) : 0
+      itemSum = r2(itemSum + r2(item.price * c.quantity - ds))
+    }
+    return r2(s + itemSum)
   }, 0))
 }
 
@@ -72,7 +81,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
   const itemTotal = computeItemTotal(purchase.items)
   const others = Math.max(
     0,
-    r2(purchase.totalAmount + charges.discount - itemTotal - charges.tax - charges.serviceCharge - charges.gratuity)
+    r2(purchase.totalAmount - charges.discount - itemTotal - charges.tax - charges.serviceCharge - charges.gratuity)
   )
 
   const scheduleAutoSave = useCallback((next: PurchaseCharges) => {
@@ -82,20 +91,6 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
       try { await onSaveRef.current(next) } finally { setSaving(false) }
     }, 800)
   }, [])
-
-  // Auto-populate discount when items + charges exceed totalAmount
-  useEffect(() => {
-    const currentItemTotal = computeItemTotal(purchase.items)
-    setCharges(prev => {
-      const excess = r2(currentItemTotal + prev.tax + prev.serviceCharge + prev.gratuity - purchase.totalAmount)
-      if (excess > 0 && prev.discount < excess) {
-        const next = { ...prev, discount: excess }
-        scheduleAutoSave(next)
-        return next
-      }
-      return prev
-    })
-  }, [purchase.items, purchase.totalAmount, scheduleAutoSave])
 
   const update = (key: keyof Omit<PurchaseCharges, 'discountMode'>, value: number) => {
     const next = { ...charges, [key]: value }
@@ -116,7 +111,7 @@ const hasAnyCharge =
     const savedItemTotal = computeItemTotal(purchase.items)
     const savedOthers = Math.max(
       0,
-      r2(purchase.totalAmount + savedCharges.discount - savedItemTotal - savedCharges.tax - savedCharges.serviceCharge - savedCharges.gratuity)
+      r2(purchase.totalAmount - savedCharges.discount - savedItemTotal - savedCharges.tax - savedCharges.serviceCharge - savedCharges.gratuity)
     )
     return (
       <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50 flex flex-col gap-1">
@@ -148,9 +143,9 @@ const hasAnyCharge =
 
         <CurrencyInput label="Diskon" value={charges.discount} onChange={(v) => update('discount', v)} />
 
-        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount) > r2(purchase.totalAmount) + 0.01 && (
+        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity + charges.discount) > r2(purchase.totalAmount) + 0.01 && (
           <p className="text-xs text-red-500 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
-            Transaksi belum balance. Tambah diskon atau kurangi nilai item/biaya.
+            Transaksi belum balance. Kurangi nilai item/biaya atau tambah total.
           </p>
         )}
       </div>

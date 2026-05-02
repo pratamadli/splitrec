@@ -83,10 +83,16 @@ export function PurchaseList({
     <section className="px-4 py-4 flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-brand-blue">Transaksi</h2>
 
-      {bill.purchases.length === 0 && addStep === 'closed' && (
+      {bill.purchases.length === 0 && addStep === 'closed' && isOwner && (
+        <div className="rounded-lg border border-dashed border-gray-300 p-5 text-center space-y-3">
+          <p className="text-sm font-medium text-gray-800">Belum ada transaksi</p>
+          <p className="text-xs text-brand-gray">Tambah transaksi — siapa yang bayar dan item apa saja.</p>
+        </div>
+      )}
+      {bill.purchases.length === 0 && addStep === 'closed' && !isOwner && (
         <EmptyState
           title="Belum ada transaksi"
-          subtitle="Tambah transaksi pertama kamu"
+          subtitle="Belum ada transaksi yang ditambahkan"
         />
       )}
 

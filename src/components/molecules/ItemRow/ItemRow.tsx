@@ -18,11 +18,12 @@ export function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
           .map((c) => (c.quantity > 1 ? `${c.participant.name} (${c.quantity}×)` : c.participant.name))
           .join(', ')
 
+  const r2 = (n: number) => Math.round(n * 100) / 100
   const rawAmount =
     item.consumers.length === 0
-      ? item.price * item.quantity
-      : item.price * item.consumers.reduce((s, c) => s + c.quantity, 0)
-  const netAmount = rawAmount - (item.discount ?? 0)
+      ? r2(item.price * item.quantity)
+      : r2(item.price * item.consumers.reduce((s, c) => s + c.quantity, 0))
+  const netAmount = r2(rawAmount - (item.discount ?? 0))
 
   return (
     <div className="flex items-center gap-3 py-2.5 px-4 border-t border-gray-100">

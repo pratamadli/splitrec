@@ -23,6 +23,19 @@ export async function renameParticipant(id: string, name: string) {
   return updated
 }
 
+export async function updateParticipantBankInfo(
+  id: string,
+  bankName: string | null,
+  bankAccount: string | null
+) {
+  const [updated] = await db
+    .update(participants)
+    .set({ bankName, bankAccount })
+    .where(eq(participants.id, id))
+    .returning()
+  return updated
+}
+
 export async function deleteParticipant(id: string) {
   await db.delete(participants).where(eq(participants.id, id))
 }

@@ -24,7 +24,7 @@ export function ShareView({ bill }: ShareViewProps) {
 
       {/* Results */}
       <div className="flex-1 pb-4">
-        <SettlementResult bill={bill} result={null} />
+        <SettlementResult bill={bill} result={null} isOwner={false} />
       </div>
 
       {/* Share button */}
