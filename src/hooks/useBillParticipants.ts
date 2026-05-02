@@ -50,5 +50,18 @@ export function useBillParticipants(billId: string, mutate: KeyedMutator<BillDat
     [deviceId, mutate]
   )
 
-  return { addParticipant, deleteParticipant }
+  const updateBankInfo = useCallback(
+    async (participantId: string, bankName: string | null, bankAccount: string | null) => {
+      const res = await fetch(`/api/participants/${participantId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+        body: JSON.stringify({ bankName, bankAccount }),
+      })
+      if (!res.ok) throw new Error('Gagal menyimpan info rekening')
+      await mutate()
+    },
+    [deviceId, mutate]
+  )
+
+  return { addParticipant, deleteParticipant, updateBankInfo }
 }
