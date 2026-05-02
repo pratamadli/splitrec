@@ -29,6 +29,10 @@ interface AddItemFormProps {
   onCancel: () => void
 }
 
+function buildDefaultQtys(ids: string[]): Record<string, string> {
+  return Object.fromEntries(ids.map((id) => [id, '1']))
+}
+
 export function AddItemForm({
   participants,
   initialValues,
@@ -36,7 +40,9 @@ export function AddItemForm({
   onSubmit,
   onCancel,
 }: AddItemFormProps) {
+  const isEditMode = !!initialValues
   const initialTotalQty = initialValues?.consumers.reduce((s, c) => s + c.quantity, 0) ?? 1
+
   const [name, setName] = useState(initialValues?.name ?? '')
   const [price, setPrice] = useState(
     initialValues ? Math.round(initialValues.price * Math.max(initialTotalQty, 1)) : 0
@@ -46,13 +52,14 @@ export function AddItemForm({
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initialValues?.consumers.map((c) => c.participantId) ?? []
   )
-  // Store qty as string so users can clear the field and retype freely
   const [qtys, setQtys] = useState<Record<string, string>>(
-    Object.fromEntries(initialValues?.consumers.map((c) => [c.participantId, String(c.quantity)]) ?? [])
+    initialValues
+      ? Object.fromEntries(initialValues.consumers.map((c) => [c.participantId, String(c.quantity)]))
+      : {}
   )
   const [loading, setLoading] = useState(false)
 
-  const handleSelectChange = (ids: string[]) => {
+const handleSelectChange = (ids: string[]) => {
     setSelectedIds(ids)
     setQtys((prev) => {
       const next: Record<string, string> = {}
@@ -62,7 +69,6 @@ export function AddItemForm({
   }
 
   const handleQtyChange = (id: string, raw: string) => {
-    // Allow empty string or digits only, cap at 999
     const cleaned = raw.replace(/\D/g, '')
     const capped = cleaned && parseInt(cleaned, 10) > 999 ? '999' : cleaned
     setQtys((prev) => ({ ...prev, [id]: capped }))
@@ -73,8 +79,18 @@ export function AddItemForm({
   )
   const allQtysValid = selectedIds.every((id) => (parsedQtys[id] ?? 0) >= 1)
 
-  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  const resetForm = () => {
+    const ids = participants.map((p) => p.id)
+    setName('')
+    setPrice(0)
+    setDiscount(0)
+    setNote('')
+    setSelectedIds(ids)
+    setQtys(buildDefaultQtys(ids))
+  }
+
+  const handleSubmit = async (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault()
     if (!name.trim() || price <= 0 || !allQtysValid) return
     setLoading(true)
     try {
@@ -82,6 +98,10 @@ export function AddItemForm({
       const totalQty = consumers.reduce((s, c) => s + c.quantity, 0)
       const pricePerPortion = price / Math.max(totalQty, 1)
       await onSubmit({ name, price: pricePerPortion, note: note || null, discount, consumers })
+      if (!isEditMode) {
+        resetForm()
+        // keep form open — user can add another item immediately
+      }
     } finally {
       setLoading(false)
     }
@@ -93,9 +113,10 @@ export function AddItemForm({
         label="Nama item"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="cth. Nasi goreng"
+        placeholder="Nama menu (misal: Nasi Goreng)"
         maxLength={200}
         required
+        autoFocus={!isEditMode}
       />
       <CurrencyInput label="Harga total" value={price} onChange={setPrice} />
       <CurrencyInput label="Diskon item (opsional)" value={discount} onChange={setDiscount} />
@@ -105,6 +126,12 @@ export function AddItemForm({
         onChange={(e) => setNote(e.target.value)}
         placeholder="cth. pedas, tanpa bawang"
         maxLength={200}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && selectedIds.length === 0) {
+            e.preventDefault()
+            handleSubmit()
+          }
+        }}
       />
       {participants.length > 0 && (
         <ParticipantSelector
@@ -117,9 +144,10 @@ export function AddItemForm({
       {selectedIds.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-xs text-brand-gray font-medium">Qty per orang</p>
-          {selectedIds.map((id) => {
+          {selectedIds.map((id, idx) => {
             const participant = participants.find((p) => p.id === id)
             if (!participant) return null
+            const isLast = idx === selectedIds.length - 1
             return (
               <div key={id} className="flex items-center gap-3">
                 <span className="text-sm text-gray-700 flex-1 truncate">{participant.name}</span>
@@ -129,6 +157,12 @@ export function AddItemForm({
                   value={qtys[id] ?? '1'}
                   onChange={(e) => handleQtyChange(id, e.target.value)}
                   placeholder="1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && isLast) {
+                      e.preventDefault()
+                      handleSubmit()
+                    }
+                  }}
                   className={`w-16 h-9 rounded-lg border bg-white px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-blue ${
                     (parsedQtys[id] ?? 0) < 1 ? 'border-red-300' : 'border-gray-200'
                   }`}

@@ -4,6 +4,25 @@ import { useState } from 'react'
 import { formatIDR } from '@/src/lib/format'
 import { cn } from '@/src/lib/cn'
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="text-xs text-brand-gray hover:text-gray-700 ml-2 shrink-0 underline"
+      title="Salin untuk kirim ke WA"
+    >
+      {copied ? 'Disalin!' : 'Salin'}
+    </button>
+  )
+}
+
 export interface BreakdownLine {
   purchaseTitle: string
   amount: number
@@ -12,7 +31,7 @@ export interface BreakdownLine {
 
 interface SettlementRowProps {
   name: string
-  debts: Array<{ toName: string; amount: number }>
+  debts: Array<{ toName: string; amount: number; bankName?: string | null; bankAccount?: string | null }>
   received: number
   breakdown: BreakdownLine[]
 }
@@ -56,7 +75,12 @@ export function SettlementRow({ name, debts, received, breakdown }: SettlementRo
           </p>
         </div>
         {amountText && (
-          <p className={cn('text-sm font-semibold shrink-0', amountColor)}>{amountText}</p>
+          <p className={cn('text-lg font-semibold shrink-0', amountColor)}>{amountText}</p>
+        )}
+        {isDebtor && (
+          <CopyButton
+            text={debts.map((d) => `${name} bayar ${d.toName} ${formatIDR(d.amount)}`).join(', ')}
+          />
         )}
         <svg
           className={cn('h-4 w-4 text-gray-400 shrink-0 transition-transform duration-200', expanded && 'rotate-90')}
@@ -71,6 +95,25 @@ export function SettlementRow({ name, debts, received, breakdown }: SettlementRo
 
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+          {isDebtor && debts.some((d) => d.bankName || d.bankAccount) && (
+            <div className="mb-3 flex flex-col gap-1.5">
+              {debts.map((d, i) =>
+                (d.bankName || d.bankAccount) ? (
+                  <div key={i} className="rounded-lg bg-brand-blue/5 border border-brand-blue/15 px-3 py-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-brand-blue truncate">{d.toName}</p>
+                      <p className="text-xs text-gray-600 truncate">
+                        {[d.bankName, d.bankAccount].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    {d.bankAccount && (
+                      <CopyButton text={d.bankAccount} />
+                    )}
+                  </div>
+                ) : null
+              )}
+            </div>
+          )}
           {breakdown.length === 0 ? (
             <p className="text-xs text-brand-gray">Tidak ada transaksi</p>
           ) : (

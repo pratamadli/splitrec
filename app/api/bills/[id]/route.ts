@@ -19,7 +19,12 @@ export async function GET(_: Request, { params }: Params) {
       currency: bill.currency,
       createdAt: bill.createdAt,
       updatedAt: bill.updatedAt,
-      participants: bill.participants.map((p) => ({ id: p.id, name: p.name })),
+      participants: bill.participants.map((p) => ({
+        id: p.id,
+        name: p.name,
+        bankName: p.bankName ?? null,
+        bankAccount: p.bankAccount ?? null,
+      })),
       purchases: bill.purchases.map((p) => ({
         id: p.id,
         title: p.title,

@@ -36,6 +36,8 @@ export const participants = pgTable(
       .notNull()
       .references(() => bills.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    bankName: text('bank_name'),
+    bankAccount: text('bank_account'),
   },
   (t) => [index('participants_bill_id_idx').on(t.billId)]
 )
