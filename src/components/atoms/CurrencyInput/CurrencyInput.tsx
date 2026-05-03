@@ -53,13 +53,13 @@ export function CurrencyInput({
 
   return (
     <div className="flex flex-col gap-1">
-      {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
+      {label && <label className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</label>}
       <div
         className={cn(
-          'flex h-11 w-full items-center rounded-lg border border-gray-200 bg-white px-3 gap-2',
+          'flex h-11 w-full items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 gap-2',
           'focus-within:ring-2 focus-within:ring-brand-blue focus-within:border-transparent',
           error && 'border-destructive',
-          disabled && 'bg-gray-50',
+          disabled && 'bg-gray-50 dark:bg-gray-700',
           className
         )}
       >
@@ -70,7 +70,7 @@ export function CurrencyInput({
           value={displayValue}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 bg-transparent text-sm focus:outline-none disabled:cursor-not-allowed"
+          className="flex-1 bg-transparent text-sm text-gray-900 dark:text-gray-100 focus:outline-none disabled:cursor-not-allowed"
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChange={handleChange}

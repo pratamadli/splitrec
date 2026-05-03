@@ -5,6 +5,7 @@ import { Input } from '@/src/components/atoms/Input'
 import { CurrencyInput } from '@/src/components/atoms/CurrencyInput'
 import { Button } from '@/src/components/atoms/Button'
 import { ParticipantSelector } from '@/src/components/molecules/ParticipantSelector'
+import { useLang } from '@/src/contexts/LanguageContext'
 import type { ParticipantData } from '@/src/types/bill.types'
 
 type ItemConsumer = { participantId: string; quantity: number }
@@ -36,10 +37,11 @@ function buildDefaultQtys(ids: string[]): Record<string, string> {
 export function AddItemForm({
   participants,
   initialValues,
-  submitLabel = 'Tambah Item',
+  submitLabel,
   onSubmit,
   onCancel,
 }: AddItemFormProps) {
+  const { t } = useLang()
   const isEditMode = !!initialValues
   const initialTotalQty = initialValues?.consumers.reduce((s, c) => s + c.quantity, 0) ?? 1
 
@@ -59,7 +61,7 @@ export function AddItemForm({
   )
   const [loading, setLoading] = useState(false)
 
-const handleSelectChange = (ids: string[]) => {
+  const handleSelectChange = (ids: string[]) => {
     setSelectedIds(ids)
     setQtys((prev) => {
       const next: Record<string, string> = {}
@@ -100,7 +102,6 @@ const handleSelectChange = (ids: string[]) => {
       await onSubmit({ name, price: pricePerPortion, note: note || null, discount, consumers })
       if (!isEditMode) {
         resetForm()
-        // keep form open — user can add another item immediately
       }
     } finally {
       setLoading(false)
@@ -108,23 +109,23 @@ const handleSelectChange = (ids: string[]) => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 bg-gray-50 rounded-xl">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
       <Input
-        label="Nama item"
+        label={t('items.item_name')}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Nama menu (misal: Nasi Goreng)"
+        placeholder={t('items.item_name_placeholder')}
         maxLength={200}
         required
         autoFocus={!isEditMode}
       />
-      <CurrencyInput label="Harga total" value={price} onChange={setPrice} />
-      <CurrencyInput label="Diskon item (opsional)" value={discount} onChange={setDiscount} />
+      <CurrencyInput label={t('items.total_price')} value={price} onChange={setPrice} />
+      <CurrencyInput label={t('items.discount')} value={discount} onChange={setDiscount} />
       <Input
-        label="Catatan (opsional)"
+        label={t('items.note')}
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="cth. pedas, tanpa bawang"
+        placeholder={t('items.note_placeholder')}
         maxLength={200}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && selectedIds.length === 0) {
@@ -138,19 +139,18 @@ const handleSelectChange = (ids: string[]) => {
           participants={participants}
           selectedIds={selectedIds}
           onChange={handleSelectChange}
-          label="Participants"
         />
       )}
       {selectedIds.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-brand-gray font-medium">Qty per orang</p>
+          <p className="text-xs text-brand-gray font-medium">{t('items.qty_per_person')}</p>
           {selectedIds.map((id, idx) => {
             const participant = participants.find((p) => p.id === id)
             if (!participant) return null
             const isLast = idx === selectedIds.length - 1
             return (
               <div key={id} className="flex items-center gap-3">
-                <span className="text-sm text-gray-700 flex-1 truncate">{participant.name}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-200 flex-1 truncate">{participant.name}</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -163,8 +163,8 @@ const handleSelectChange = (ids: string[]) => {
                       handleSubmit()
                     }
                   }}
-                  className={`w-16 h-9 rounded-lg border bg-white px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-blue ${
-                    (parsedQtys[id] ?? 0) < 1 ? 'border-red-300' : 'border-gray-200'
+                  className={`w-16 h-9 rounded-lg border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-blue ${
+                    (parsedQtys[id] ?? 0) < 1 ? 'border-red-300' : 'border-gray-200 dark:border-gray-700'
                   }`}
                 />
               </div>
@@ -174,10 +174,10 @@ const handleSelectChange = (ids: string[]) => {
       )}
       <div className="flex gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">
-          Batal
+          {t('common.cancel')}
         </Button>
         <Button type="submit" isLoading={loading} disabled={!name.trim() || price <= 0 || selectedIds.length === 0 || !allQtysValid} className="flex-1">
-          {submitLabel}
+          {submitLabel ?? t('items.add_item').replace('+ ', '')}
         </Button>
       </div>
     </form>

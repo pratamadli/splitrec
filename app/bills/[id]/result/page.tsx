@@ -4,8 +4,11 @@ import { use, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBill } from '@/src/hooks/useBill'
 import { useBillParticipants } from '@/src/hooks/useBillParticipants'
+import { useLang } from '@/src/contexts/LanguageContext'
 import { Logo } from '@/src/components/atoms/Logo'
 import { Button } from '@/src/components/atoms/Button'
+import { ThemeToggle } from '@/src/components/atoms/ThemeToggle'
+import { LangToggle } from '@/src/components/atoms/LangToggle'
 import { SettlementResult } from '@/src/components/organisms/SettlementResult'
 import { ShareButton } from '@/src/components/molecules/ShareButton'
 import { StepIndicator } from '@/src/components/molecules/StepIndicator/StepIndicator'
@@ -19,6 +22,7 @@ interface PageProps {
 export default function BillResultPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
+  const { t } = useLang()
   const { bill, isLoading, mutate, deviceId, toggleSettlement } = useBill(id)
   const { updateBankInfo } = useBillParticipants(id, mutate)
   const [creating, setCreating] = useState(false)
@@ -52,7 +56,7 @@ export default function BillResultPage({ params }: PageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <Spinner size="md" />
       </div>
     )
@@ -60,8 +64,8 @@ export default function BillResultPage({ params }: PageProps) {
 
   if (!bill) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Tagihan tidak ditemukan.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <p className="text-gray-500 dark:text-gray-400">{t('common.bill_not_found')}</p>
       </div>
     )
   }
@@ -69,22 +73,26 @@ export default function BillResultPage({ params }: PageProps) {
   const hasTransactions = bill.purchases.length > 0
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-lg mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col max-w-lg mx-auto">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10">
         <div className="px-4 py-4">
           <div className="flex items-center gap-3">
             <Logo size="sm" />
+            <div className="ml-auto flex items-center gap-1">
+              <LangToggle />
+              <ThemeToggle />
+            </div>
           </div>
           <div className="flex items-center justify-between mt-3">
-            <h1 className="text-xl font-semibold text-brand-blue">Hasil Pembagian</h1>
+            <h1 className="text-xl font-semibold text-brand-blue">{t('bill.results_title')}</h1>
             {isOwner && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push(`/bills/${id}/transaksi`)}
               >
-                Ubah
+                {t('common.edit')}
               </Button>
             )}
           </div>
@@ -113,7 +121,7 @@ export default function BillResultPage({ params }: PageProps) {
       <div className="px-4 pb-8 mt-2 flex flex-col gap-3">
         <ShareButton shareToken={bill.shareToken} billId={bill.id} createdAt={bill.createdAt} />
         <Button variant="ghost" isLoading={creating} onClick={handleCreateNew} className="w-full">
-          Buat Tagihan Baru
+          {t('common.create_new_bill')}
         </Button>
       </div>
     </div>

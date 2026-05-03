@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { SettlementRow, type BreakdownLine } from '@/src/components/molecules/SettlementRow'
 import { AdSlot } from '@/src/components/atoms/AdSlot'
+import { useLang } from '@/src/contexts/LanguageContext'
 import type { BillData, ParticipantData, PurchaseData } from '@/src/types/bill.types'
 import type { CalculateResult } from '@/src/types/api.types'
 
@@ -98,6 +99,7 @@ interface BankInfoCardProps {
 }
 
 function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
+  const { t } = useLang()
   const [editing, setEditing] = useState(false)
   const [bankName, setBankName] = useState(participant.bankName ?? '')
   const [bankAccount, setBankAccount] = useState(participant.bankAccount ?? '')
@@ -125,30 +127,30 @@ function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
           type="text"
           value={bankName}
           onChange={(e) => setBankName(e.target.value)}
-          placeholder="Nama bank (cth. BCA, Mandiri)"
-          className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+          placeholder={t('result.bank_name_placeholder')}
+          className="h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
         />
         <input
           type="text"
           inputMode="numeric"
           value={bankAccount}
           onChange={(e) => setBankAccount(e.target.value)}
-          placeholder="Nomor rekening"
-          className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+          placeholder={t('result.account_placeholder')}
+          className="h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
         />
         <div className="flex gap-2 pt-0.5">
           <button
             onClick={() => { setBankName(participant.bankName ?? ''); setBankAccount(participant.bankAccount ?? ''); setEditing(false) }}
-            className="flex-1 h-8 rounded-lg text-xs text-brand-gray border border-gray-200 bg-white"
+            className="flex-1 h-8 rounded-lg text-xs text-brand-gray border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
           >
-            Batal
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
             className="flex-2 h-8 rounded-lg text-xs font-semibold text-white bg-brand-blue disabled:opacity-50 whitespace-nowrap"
           >
-            {saving ? 'Menyimpan…' : 'Simpan'}
+            {saving ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -156,15 +158,15 @@ function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 flex items-center gap-2">
+    <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2.5 flex items-center gap-2">
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-gray-800">{participant.name}</p>
+        <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">{participant.name}</p>
         {hasBankInfo ? (
-          <p className="text-xs text-gray-500 truncate">
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
             {[participant.bankName, participant.bankAccount].filter(Boolean).join(' · ')}
           </p>
         ) : (
-          <p className="text-xs text-gray-400 italic">Belum diisi</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 italic">{t('result.not_filled')}</p>
         )}
       </div>
       {isOwner && (
@@ -172,7 +174,7 @@ function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
           onClick={() => setEditing(true)}
           className="text-xs text-brand-blue shrink-0"
         >
-          {hasBankInfo ? 'Ubah' : '+ Isi'}
+          {hasBankInfo ? t('common.edit') : t('result.add_bank')}
         </button>
       )}
     </div>
@@ -182,6 +184,8 @@ function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
 // ─── SettlementResult ─────────────────────────────────────────────────────────
 
 export function SettlementResult({ bill, result, isOwner, onUpdateBankInfo, onTogglePaid }: SettlementResultProps) {
+  const { t } = useLang()
+
   const debts = result?.debts ?? bill.debts.map((d) => ({
     fromParticipantId: d.from.id,
     fromName: d.from.name,
@@ -195,7 +199,6 @@ export function SettlementResult({ bill, result, isOwner, onUpdateBankInfo, onTo
     bill.participants.map((p) => [p.id, p])
   )
 
-  // Group debts by payer, including creditor bank info and paid status
   const debtsByFrom = new Map<string, Array<{
     fromParticipantId: string
     toParticipantId: string
@@ -222,7 +225,6 @@ export function SettlementResult({ bill, result, isOwner, onUpdateBankInfo, onTo
     ])
   }
 
-  // Total received per creditor
   const receivedByTo = new Map<string, number>()
   for (const debt of debts) {
     receivedByTo.set(debt.toParticipantId, (receivedByTo.get(debt.toParticipantId) ?? 0) + debt.amount)
@@ -237,22 +239,24 @@ export function SettlementResult({ bill, result, isOwner, onUpdateBankInfo, onTo
 
       {debts.length > 0 ? (
         <div className="rounded-lg bg-brand-green/10 border border-brand-green/30 px-4 py-3 mb-2 text-center">
-          <p className="text-sm text-brand-green font-medium">Tagihan selesai dihitung!</p>
+          <p className="text-sm text-brand-green font-medium">{t('result.calculated')}</p>
           <p className="text-xs text-brand-gray mt-0.5">
-            {bill.participants.length} orang · {debts.length} transfer
+            {t('result.people_transfers', {
+              people: String(bill.participants.length),
+              transfers: String(debts.length),
+            })}
           </p>
         </div>
       ) : (
         <div className="rounded-lg bg-brand-green/10 border border-brand-green/30 px-4 py-3 mb-2 text-center">
-          <p className="text-sm text-brand-green font-medium">Semua sudah lunas! 🎉</p>
+          <p className="text-sm text-brand-green font-medium">{t('result.all_settled')}</p>
         </div>
       )}
 
-      {/* Bank info section for creditors */}
       {creditors.length > 0 && (
         <div className="mb-2">
           <p className="text-xs font-semibold text-brand-gray uppercase tracking-wide mb-2">
-            Info Rekening Penerima
+            {t('result.bank_info')}
           </p>
           <div className="flex flex-col gap-2">
             {creditors.map((p) => (

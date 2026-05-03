@@ -11,9 +11,9 @@ interface ParticipantChipProps {
 
 export function ParticipantChip({ participant, onDelete }: ParticipantChipProps) {
   return (
-    <div className="flex items-center gap-2 rounded-full bg-gray-100 pl-1 pr-2 py-1">
+    <div className="flex items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-800 pl-1 pr-2 py-1">
       <Avatar name={participant.name} size="sm" />
-      <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-30 truncate">
         {participant.name}
       </span>
       {onDelete && (

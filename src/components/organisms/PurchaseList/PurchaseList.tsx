@@ -7,6 +7,7 @@ import { Input } from '@/src/components/atoms/Input'
 import { CurrencyInput } from '@/src/components/atoms/CurrencyInput'
 import { EmptyState } from '@/src/components/atoms/EmptyState'
 import { cn } from '@/src/lib/cn'
+import { useLang } from '@/src/contexts/LanguageContext'
 import type { BillData } from '@/src/types/bill.types'
 
 type ItemConsumer = { participantId: string; quantity: number }
@@ -36,6 +37,7 @@ export function PurchaseList({
   onEditItem,
   onDeleteItem,
 }: PurchaseListProps) {
+  const { t } = useLang()
   const [addStep, setAddStep] = useState<AddStep>('closed')
   const [addMode, setAddMode] = useState<AddMode>('equal')
   const [justAddedItemPurchaseId, setJustAddedItemPurchaseId] = useState<string | null>(null)
@@ -81,18 +83,18 @@ export function PurchaseList({
 
   return (
     <section className="px-4 py-4 flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-brand-blue">Transaksi</h2>
+      <h2 className="text-sm font-semibold text-brand-blue">{t('purchases.title')}</h2>
 
       {bill.purchases.length === 0 && addStep === 'closed' && isOwner && (
-        <div className="rounded-lg border border-dashed border-gray-300 p-5 text-center space-y-3">
-          <p className="text-sm font-medium text-gray-800">Belum ada transaksi</p>
-          <p className="text-xs text-brand-gray">Tambah transaksi — siapa yang bayar dan item apa saja.</p>
+        <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-5 text-center space-y-3">
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100">{t('purchases.empty_owner')}</p>
+          <p className="text-xs text-brand-gray">{t('purchases.empty_hint')}</p>
         </div>
       )}
       {bill.purchases.length === 0 && addStep === 'closed' && !isOwner && (
         <EmptyState
-          title="Belum ada transaksi"
-          subtitle="Belum ada transaksi yang ditambahkan"
+          title={t('purchases.empty_owner')}
+          subtitle={t('purchases.empty_viewer')}
         />
       )}
 
@@ -113,54 +115,54 @@ export function PurchaseList({
 
       {isOwner && (
         addStep === 'choose' ? (
-          <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-3">
-            <p className="text-sm font-semibold text-gray-700">Pilih jenis pembagian</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('purchases.choose_type')}</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleChooseMode('equal')}
-                className="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-brand-blue/20 bg-white text-center hover:border-brand-blue transition-colors"
+                className="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-brand-blue/20 bg-white dark:bg-gray-900 text-center hover:border-brand-blue transition-colors"
               >
                 <span className="text-2xl">⚖️</span>
-                <span className="text-sm font-semibold text-gray-800">Bagi Rata</span>
-                <span className="text-xs text-brand-gray">Total dibagi semua peserta</span>
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('purchases.equal_split')}</span>
+                <span className="text-xs text-brand-gray">{t('purchases.equal_split_desc')}</span>
               </button>
               <button
                 onClick={() => handleChooseMode('item')}
-                className="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-brand-blue/20 bg-white text-center hover:border-brand-blue transition-colors"
+                className="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-brand-blue/20 bg-white dark:bg-gray-900 text-center hover:border-brand-blue transition-colors"
               >
                 <span className="text-2xl">🧾</span>
-                <span className="text-sm font-semibold text-gray-800">Per Item</span>
-                <span className="text-xs text-brand-gray">Tentukan siapa pakai apa</span>
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('purchases.per_item')}</span>
+                <span className="text-xs text-brand-gray">{t('purchases.per_item_desc')}</span>
               </button>
             </div>
             <Button type="button" variant="ghost" onClick={handleCancel} className="w-full">
-              Batal
+              {t('common.cancel')}
             </Button>
           </div>
         ) : addStep === 'form' ? (
-          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-gray-50 rounded-2xl p-4">
+          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-gray-50 dark:bg-gray-800 rounded-2xl p-4">
             {addMode === 'item' && (
               <div className="flex items-center gap-2 bg-brand-blue/5 rounded-lg px-3 py-2">
                 <span className="text-xs">🧾</span>
-                <p className="text-xs font-medium text-brand-blue">Per Item · Tambah item setelah ini</p>
+                <p className="text-xs font-medium text-brand-blue">{t('purchases.per_item_hint')}</p>
               </div>
             )}
             <Input
-              label="Nama transaksi"
+              label={t('purchases.transaction_name')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="cth. Makan siang, Bensin"
+              placeholder={t('purchases.transaction_placeholder')}
               maxLength={200}
               required
               autoFocus
             />
-            <CurrencyInput label="Total" value={totalAmount} onChange={setTotalAmount} />
+            <CurrencyInput label={t('purchases.total')} value={totalAmount} onChange={setTotalAmount} />
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Dibayar oleh</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('purchases.paid_by')}</label>
               <select
                 value={paidBy}
                 onChange={(e) => setPaidBy(e.target.value)}
-                className="h-11 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                className="h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
               >
                 {bill.participants.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
@@ -169,7 +171,7 @@ export function PurchaseList({
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="ghost" onClick={handleCancel} className="flex-1">
-                Batal
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
@@ -177,7 +179,7 @@ export function PurchaseList({
                 disabled={!title.trim() || totalAmount <= 0}
                 className={cn('flex-1', addMode === 'item' && 'bg-brand-blue')}
               >
-                {addMode === 'item' ? 'Tambah & Input Item' : 'Tambah'}
+                {addMode === 'item' ? t('purchases.add_and_enter') : t('common.add')}
               </Button>
             </div>
           </form>
@@ -188,7 +190,7 @@ export function PurchaseList({
             disabled={bill.participants.length === 0}
             className="w-full"
           >
-            + Tambah Transaksi
+            {t('purchases.add_transaction')}
           </Button>
         )
       )}

@@ -1,10 +1,13 @@
+'use client'
+
 import { cn } from '@/src/lib/cn'
+import { useLang } from '@/src/contexts/LanguageContext'
 
 type StepStatus = 'done' | 'active' | 'pending'
 
 interface Step {
   number: number
-  label: string
+  labelKey: 'step.participants' | 'step.transactions' | 'step.results'
   status: StepStatus
 }
 
@@ -23,17 +26,18 @@ function computeSteps(participantCount: number, hasTransactions: boolean, curren
   }
 
   return [
-    { number: 1, label: 'Peserta', status: getStatus(1) },
-    { number: 2, label: 'Transaksi', status: getStatus(2) },
-    { number: 3, label: 'Hasil', status: getStatus(3) },
+    { number: 1, labelKey: 'step.participants', status: getStatus(1) },
+    { number: 2, labelKey: 'step.transactions', status: getStatus(2) },
+    { number: 3, labelKey: 'step.results', status: getStatus(3) },
   ]
 }
 
 export function StepIndicator({ participantCount, hasTransactions, currentStep }: StepIndicatorProps) {
+  const { t } = useLang()
   const steps = computeSteps(participantCount, hasTransactions, currentStep)
 
   return (
-    <div className="flex items-center justify-center px-4 py-3 bg-white border-b border-gray-100">
+    <div className="flex items-center justify-center px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
       {steps.map((step, idx) => (
         <div key={step.number} className="flex items-center">
           <div className="flex flex-col items-center gap-1">
@@ -42,7 +46,7 @@ export function StepIndicator({ participantCount, hasTransactions, currentStep }
                 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
                 step.status === 'done' && 'bg-brand-blue text-white',
                 step.status === 'active' && 'border-2 border-brand-blue text-brand-blue',
-                step.status === 'pending' && 'border-2 border-gray-300 text-gray-400'
+                step.status === 'pending' && 'border-2 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500'
               )}
             >
               {step.status === 'done' ? (
@@ -56,17 +60,17 @@ export function StepIndicator({ participantCount, hasTransactions, currentStep }
             <span
               className={cn(
                 'text-xs font-medium',
-                step.status === 'pending' ? 'text-gray-400' : 'text-brand-blue'
+                step.status === 'pending' ? 'text-gray-400 dark:text-gray-500' : 'text-brand-blue'
               )}
             >
-              {step.label}
+              {t(step.labelKey)}
             </span>
           </div>
           {idx < steps.length - 1 && (
             <div
               className={cn(
                 'h-0.5 w-10 mx-2 mb-4 rounded',
-                steps[idx].status === 'done' ? 'bg-brand-blue' : 'bg-gray-200'
+                steps[idx].status === 'done' ? 'bg-brand-blue' : 'bg-gray-200 dark:bg-gray-700'
               )}
             />
           )}

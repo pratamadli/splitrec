@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-blue: #1b3a7a;
   --color-brand-blue-light: #4a8fd4;
@@ -13,6 +15,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+}
+
+.dark {
+  --background: #030712;
+  --foreground: #f9fafb;
 }
 
 body {

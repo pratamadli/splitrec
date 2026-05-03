@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Logo } from '@/src/components/atoms/Logo'
 import { Input } from '@/src/components/atoms/Input'
+import { ThemeToggle } from '@/src/components/atoms/ThemeToggle'
+import { LangToggle } from '@/src/components/atoms/LangToggle'
 import type { BillData } from '@/src/types/bill.types'
 
 interface BillHeaderProps {
@@ -25,9 +27,13 @@ export function BillHeader({ bill, onUpdateTitle, isOwner }: BillHeaderProps) {
   }
 
   return (
-    <div className="bg-white border-b border-gray-100 px-4 py-4 flex flex-col gap-3">
+    <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 py-4 flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <Logo size="sm" />
+        <div className="ml-auto flex items-center gap-1">
+          <LangToggle />
+          <ThemeToggle />
+        </div>
       </div>
       {editing && isOwner ? (
         <Input
@@ -38,13 +44,18 @@ export function BillHeader({ bill, onUpdateTitle, isOwner }: BillHeaderProps) {
           maxLength={200}
           autoFocus
         />
-      ) : (
-        <h1
-          className="text-xl font-semibold text-brand-blue cursor-pointer"
-          onClick={() => isOwner && setEditing(true)}
+      ) : isOwner ? (
+        <button
+          onClick={() => setEditing(true)}
+          className="flex items-center gap-2 text-left group w-fit max-w-full"
         >
-          {bill.title}
-        </h1>
+          <h1 className="text-xl font-semibold text-brand-blue truncate group-hover:underline">
+            {bill.title}
+          </h1>
+          <span className="text-base text-brand-gray opacity-50 group-hover:opacity-100 transition-opacity shrink-0">✏️</span>
+        </button>
+      ) : (
+        <h1 className="text-xl font-semibold text-brand-blue">{bill.title}</h1>
       )}
     </div>
   )

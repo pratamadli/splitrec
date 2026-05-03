@@ -9,8 +9,8 @@ interface BillEditLayoutProps {
 
 export function BillEditLayout({ header, stepIndicator, content, footer }: BillEditLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-lg mx-auto">
-      <div className="sticky top-0 z-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col max-w-lg mx-auto">
+      <div>
         {header}
         {stepIndicator}
       </div>

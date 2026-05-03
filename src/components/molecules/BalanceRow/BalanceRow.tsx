@@ -1,6 +1,9 @@
+'use client'
+
 import { Avatar } from '@/src/components/atoms/Avatar'
 import { formatIDR } from '@/src/lib/format'
 import { cn } from '@/src/lib/cn'
+import { useLang } from '@/src/contexts/LanguageContext'
 
 interface BalanceRowProps {
   balance: {
@@ -13,15 +16,16 @@ interface BalanceRowProps {
 }
 
 export function BalanceRow({ balance }: BalanceRowProps) {
+  const { t } = useLang()
   const isPositive = balance.balance > 0.01
   const isNegative = balance.balance < -0.01
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
+    <div className="flex items-center gap-3 py-2.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
       <Avatar name={balance.name} size="sm" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800 truncate">{balance.name}</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{balance.name}</p>
         <p className="text-xs text-brand-gray">
-          Bayar {formatIDR(balance.paid)} · Konsumsi {formatIDR(balance.consumed)}
+          {t('balance.paid')} {formatIDR(balance.paid)} · {t('balance.consumed')} {formatIDR(balance.consumed)}
         </p>
       </div>
       <p

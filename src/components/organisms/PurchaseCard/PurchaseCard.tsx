@@ -9,6 +9,7 @@ import { Input } from '@/src/components/atoms/Input'
 import { CurrencyInput } from '@/src/components/atoms/CurrencyInput'
 import { ConfirmDialog } from '@/src/components/molecules/ConfirmDialog'
 import { formatIDR } from '@/src/lib/format'
+import { useLang } from '@/src/contexts/LanguageContext'
 import type { PurchaseData, ParticipantData, PurchaseCharges } from '@/src/types/bill.types'
 
 type ItemConsumer = { participantId: string; quantity: number }
@@ -37,7 +38,6 @@ export function computeItemTotal(items: PurchaseData['items']): number {
     if (item.consumers.length === 0) {
       return r2(s + r2(item.price * item.quantity - itemDiscount))
     }
-    // Mirror split.ts: sum per-consumer rounded costs
     const consumerQtySum = item.consumers.reduce((cq, c) => cq + c.quantity, 0)
     let itemSum = 0
     for (const c of item.consumers) {
@@ -65,6 +65,7 @@ interface ChargesPanelProps {
 }
 
 function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
+  const { t } = useLang()
   const [charges, setCharges] = useState<PurchaseCharges>(
     purchase.charges ?? { ...EMPTY_CHARGES }
   )
@@ -73,7 +74,6 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
   const onSaveRef = useRef(onSave)
   useEffect(() => { onSaveRef.current = onSave })
 
-  // Re-sync if purchase.charges changes externally (e.g. after revalidation)
   useEffect(() => {
     setCharges(purchase.charges ?? { ...EMPTY_CHARGES })
   }, [purchase.charges])
@@ -98,7 +98,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
     scheduleAutoSave(next)
   }
 
-const hasAnyCharge =
+  const hasAnyCharge =
     purchase.charges &&
     (purchase.charges.tax > 0 ||
       purchase.charges.serviceCharge > 0 ||
@@ -114,38 +114,38 @@ const hasAnyCharge =
       r2(purchase.totalAmount - savedCharges.discount - savedItemTotal - savedCharges.tax - savedCharges.serviceCharge - savedCharges.gratuity)
     )
     return (
-      <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50 flex flex-col gap-1">
-        <p className="text-xs font-semibold text-brand-gray uppercase tracking-wide mb-1">Biaya Tambahan</p>
-        {savedCharges.tax > 0 && <ChargesRow label="Pajak" value={savedCharges.tax} />}
-        {savedCharges.serviceCharge > 0 && <ChargesRow label="Service Charge" value={savedCharges.serviceCharge} />}
-        {savedCharges.gratuity > 0 && <ChargesRow label="Gratuity" value={savedCharges.gratuity} />}
-        {savedOthers > 0 && <ChargesRow label="Others" value={savedOthers} />}
-        {savedCharges.discount > 0 && <ChargesRow label="Diskon" value={-savedCharges.discount} />}
+      <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-gray-50/50 dark:bg-gray-800/30 flex flex-col gap-1">
+        <p className="text-xs font-semibold text-brand-gray uppercase tracking-wide mb-1">{t('charges.additional')}</p>
+        {savedCharges.tax > 0 && <ChargesRow label={t('charges.tax')} value={savedCharges.tax} />}
+        {savedCharges.serviceCharge > 0 && <ChargesRow label={t('charges.service_charge')} value={savedCharges.serviceCharge} />}
+        {savedCharges.gratuity > 0 && <ChargesRow label={t('charges.gratuity')} value={savedCharges.gratuity} />}
+        {savedOthers > 0 && <ChargesRow label={t('charges.others')} value={savedOthers} />}
+        {savedCharges.discount > 0 && <ChargesRow label={t('charges.discount')} value={-savedCharges.discount} />}
       </div>
     )
   }
 
   return (
-    <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/30">
+    <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-gray-50/30 dark:bg-gray-800/20">
       <p className="text-xs font-semibold text-brand-gray uppercase tracking-wide mb-1">
-        Biaya Tambahan
-        {saving && <span className="ml-2 text-xs font-normal text-brand-gray/60">Menyimpan...</span>}
+        {t('charges.additional')}
+        {saving && <span className="ml-2 text-xs font-normal text-brand-gray/60">{t('charges.saving')}</span>}
       </p>
       <div className="flex flex-col gap-2 mt-2">
-        <CurrencyInput label="Pajak" value={charges.tax} onChange={(v) => update('tax', v)} />
-        <CurrencyInput label="Service Charge" value={charges.serviceCharge} onChange={(v) => update('serviceCharge', v)} />
-        <CurrencyInput label="Gratuity" value={charges.gratuity} onChange={(v) => update('gratuity', v)} />
+        <CurrencyInput label={t('charges.tax')} value={charges.tax} onChange={(v) => update('tax', v)} />
+        <CurrencyInput label={t('charges.service_charge')} value={charges.serviceCharge} onChange={(v) => update('serviceCharge', v)} />
+        <CurrencyInput label={t('charges.gratuity')} value={charges.gratuity} onChange={(v) => update('gratuity', v)} />
 
-        <div className="flex items-center justify-between rounded-lg border border-dashed border-gray-200 px-3 py-2">
-          <span className="text-sm text-gray-500">Others (auto)</span>
+        <div className="flex items-center justify-between rounded-lg border border-dashed border-gray-200 dark:border-gray-700 px-3 py-2">
+          <span className="text-sm text-gray-500 dark:text-gray-400">{t('charges.others')}</span>
           <span className="text-sm font-semibold text-brand-blue">{formatIDR(others)}</span>
         </div>
 
-        <CurrencyInput label="Diskon" value={charges.discount} onChange={(v) => update('discount', v)} />
+        <CurrencyInput label={t('charges.discount')} value={charges.discount} onChange={(v) => update('discount', v)} />
 
         {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity + charges.discount) > r2(purchase.totalAmount) + 0.01 && (
-          <p className="text-xs text-red-500 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
-            Transaksi belum balance. Kurangi nilai item/biaya atau tambah total.
+          <p className="text-xs text-red-500 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 px-3 py-2">
+            {t('charges.unbalanced')}
           </p>
         )}
       </div>
@@ -156,8 +156,8 @@ const hasAnyCharge =
 function ChargesRow({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center justify-between text-xs">
-      <span className="text-gray-500">{label}</span>
-      <span className={value < 0 ? 'text-brand-green font-medium' : 'text-gray-700'}>{formatIDR(Math.abs(value))}{value < 0 ? ' off' : ''}</span>
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <span className={value < 0 ? 'text-brand-green font-medium' : 'text-gray-700 dark:text-gray-200'}>{formatIDR(Math.abs(value))}{value < 0 ? ' off' : ''}</span>
     </div>
   )
 }
@@ -175,6 +175,7 @@ export function PurchaseCard({
   onEditItem,
   onDeleteItem,
 }: PurchaseCardProps) {
+  const { t } = useLang()
   const [addingItem, setAddingItem] = useState(defaultAddingItem)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -190,8 +191,6 @@ export function PurchaseCard({
     if (defaultAddingItem) setAddingItem(true)
   }, [defaultAddingItem])
 
-  // A purchase is "per item" if it has items, OR was just created via the per-item flow
-  // (defaultAddingItem stays true until the user adds the first item or navigates away)
   const isPerItem = purchase.items.length > 0 || defaultAddingItem
 
   const handleStartEdit = () => {
@@ -239,25 +238,24 @@ export function PurchaseCard({
   const showItemsSection = purchase.items.length > 0 || (defaultAddingItem && isOwner)
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      {/* Header — edit mode or view mode */}
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
       {isEditing ? (
         <form onSubmit={handleSaveEdit} className="flex flex-col gap-3 p-4">
           <Input
-            label="Nama transaksi"
+            label={t('purchases.transaction_name')}
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             maxLength={200}
             required
             autoFocus
           />
-          <CurrencyInput label="Total" value={editTotalAmount} onChange={setEditTotalAmount} />
+          <CurrencyInput label={t('purchases.total')} value={editTotalAmount} onChange={setEditTotalAmount} />
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Dibayar oleh</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('purchases.paid_by')}</label>
             <select
               value={editPaidBy}
               onChange={(e) => setEditPaidBy(e.target.value)}
-              className="h-11 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+              className="h-11 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
             >
               {participants.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -266,7 +264,7 @@ export function PurchaseCard({
           </div>
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} className="flex-1">
-              Batal
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -274,7 +272,7 @@ export function PurchaseCard({
               disabled={!editTitle.trim() || editTotalAmount <= 0}
               className="flex-1"
             >
-              Simpan
+              {t('common.save')}
             </Button>
           </div>
         </form>
@@ -282,18 +280,17 @@ export function PurchaseCard({
         <PurchaseHeader
           purchase={purchase}
           payer={purchase.payer}
-          badge={isPerItem ? 'Per Item' : 'Bagi Rata'}
+          badge={isPerItem ? t('purchases.per_item') : t('purchases.equal_split')}
           onEdit={isOwner ? handleStartEdit : undefined}
           onDelete={isOwner ? () => setConfirmDelete(true) : undefined}
         />
       )}
 
-      {/* Items section */}
       {!isEditing && showItemsSection && (
         <>
           {purchase.items.map((item) =>
             isOwner && editingItemId === item.id ? (
-              <div key={item.id} className="px-4 py-2 border-t border-gray-100">
+              <div key={item.id} className="px-4 py-2 border-t border-gray-100 dark:border-gray-800">
                 <AddItemForm
                   participants={participants}
                   initialValues={{
@@ -306,7 +303,7 @@ export function PurchaseCard({
                       quantity: c.quantity,
                     })),
                   }}
-                  submitLabel="Simpan"
+                  submitLabel={t('common.save')}
                   onSubmit={(data) => handleEditItem(item.id, data)}
                   onCancel={() => setEditingItemId(null)}
                 />
@@ -337,7 +334,7 @@ export function PurchaseCard({
                     onClick={() => setAddingItem(true)}
                     className="w-full border border-dashed border-brand-blue/40"
                   >
-                    + Tambah Item
+                    {t('items.add_item')}
                   </Button>
                 )
               )}
@@ -346,7 +343,6 @@ export function PurchaseCard({
         </>
       )}
 
-      {/* Charges section — visible after at least one item has been added */}
       {!isEditing && purchase.items.length > 0 && (
         <ChargesPanel
           purchase={purchase}
@@ -357,8 +353,8 @@ export function PurchaseCard({
 
       {confirmDelete && (
         <ConfirmDialog
-          title="Hapus transaksi?"
-          description={`"${purchase.title}" dan semua itemnya akan dihapus.`}
+          title={t('purchases.confirm_delete_title')}
+          description={t('purchases.confirm_delete_desc', { title: purchase.title })}
           onConfirm={handleDeletePurchase}
           onCancel={() => setConfirmDelete(false)}
           isLoading={deleting}
