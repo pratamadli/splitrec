@@ -1077,8 +1077,8 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.4.1 di browser — jalankan `pnpm dev`, test: buat tagihan → tambah peserta → tambah transaksi + item → hitung pembagian → isi rekening creditor → share link → buka di incognito/device lain → pastikan info rekening muncul
-2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — test StepIndicator, AddItemForm (default semua tercentang, qty toggle), SettlementRow (nominal besar, tombol Salin), bank info card
+1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.5.0 di browser — `pnpm dev`, test: dark mode toggle, language toggle (ID/EN), buat tagihan → tambah peserta → tambah transaksi + item → hitung pembagian → isi rekening creditor → share link → buka di incognito → pastikan semua text ter-translate dan dark mode konsisten
+2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — stepper tidak sticky, SettlementRow copy angka, nested button tidak lagi error di console
 3. **[DEPLOY]** Deploy ke production — `vercel --prod`
 4. Setelah mobile audit dan deploy: Phase 4 (SEO, analytics, AdSense)
 
@@ -1114,6 +1114,21 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 ---
 
 ## 17. Changelog
+
+### v1.5.0 — 2026-05-03
+**Dark mode, language switcher, UX fixes**
+
+- **Dark/light mode** — `ThemeProvider` (`src/providers/ThemeProvider.tsx`) dengan localStorage persistence (`splitrec-theme`) + fallback ke `prefers-color-scheme`. Anti-FOUC inline script di `<head>` untuk apply `.dark` class sebelum hydration. `ThemeToggle` atom (🌙/☀️ icon button). Semua komponen diupdate dengan `dark:` Tailwind variants.
+- **Language switcher ID/EN** — `LanguageProvider` (`src/contexts/LanguageContext.tsx`) dengan localStorage persistence (`splitrec-lang`). `LangToggle` atom. `src/lib/i18n.ts` — flat key-value translation table (~100 keys) dengan `createT(lang)` factory untuk `t(key, vars?)` dengan template variable substitution. Semua user-visible string dipindah ke translation keys. Tagline "Split receipts, not friendships." dikecualikan (brand copy, selalu English).
+- **Not Found page** — `app/not-found.tsx` client component dengan `useLang()`, dark mode classes, Logo + 404 + translated back link.
+- **Cron cleanup fix** — `app/api/cron/cleanup/route.ts`: `lt` → `lte` (untuk bills dan events) agar data berumur tepat 7 hari ikut terhapus.
+- **BillHeader edit affordance** — Judul tagihan untuk owner diubah dari plain `<h1>` ke `<button>` dengan ✏️ icon (opacity 50% normal, 100% on hover, underline on hover) agar lebih jelas bahwa judul bisa diedit.
+- **Dark mode body background fix** — `app/globals.css`: tambah `.dark { --background: #030712; --foreground: #f9fafb; }` — tanpa ini margin kiri/kanan tetap terang karena `--background` tidak ter-override untuk dark mode.
+- **`StepIndicator` tidak sticky** — `BillEditLayout`: hapus `sticky top-0 z-10` dari wrapper header+stepper. Stepper ikut scroll.
+- **`SettlementRow` nested button fix** — Outer `<button>` (expand/collapse) diganti jadi `<div>`. `CopyButton` dipindah sebagai sibling di luar expand button — fix error `<button> cannot contain a nested <button>`.
+- **`SettlementRow` copy hanya angka** — Tombol "Salin" di header row meng-copy angka mentah (e.g. `25000`) bukan teks berformat, lebih mudah di-paste langsung ke field transfer.
+
+---
 
 ### v1.4.2 — 2026-05-03
 **Review fixes: lunas flag, copy format, teks Indonesia, mobile buttons, Buat Tagihan Baru**

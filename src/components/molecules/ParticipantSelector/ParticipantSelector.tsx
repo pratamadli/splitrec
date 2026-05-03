@@ -1,6 +1,7 @@
 'use client'
 
 import { Checkbox } from '@/src/components/atoms/Checkbox'
+import { useLang } from '@/src/contexts/LanguageContext'
 import type { ParticipantData } from '@/src/types/bill.types'
 
 interface ParticipantSelectorProps {
@@ -14,15 +15,18 @@ export function ParticipantSelector({
   participants,
   selectedIds,
   onChange,
-  label = 'Pilih konsumen',
+  label,
 }: ParticipantSelectorProps) {
+  const { t } = useLang()
+  const displayLabel = label ?? t('selector.label')
+
   const toggle = (id: string, checked: boolean) => {
     onChange(checked ? [...selectedIds, id] : selectedIds.filter((x) => x !== id))
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {label && <p className="text-xs text-brand-gray font-medium">{label}</p>}
+      {displayLabel && <p className="text-xs text-brand-gray font-medium">{displayLabel}</p>}
       <div className="flex flex-wrap gap-3">
         {participants.map((p) => (
           <Checkbox

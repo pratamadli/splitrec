@@ -2,6 +2,7 @@
 
 import { IconButton } from '@/src/components/atoms/IconButton'
 import { formatIDR } from '@/src/lib/format'
+import { useLang } from '@/src/contexts/LanguageContext'
 import type { ItemData } from '@/src/types/bill.types'
 
 interface ItemRowProps {
@@ -11,9 +12,10 @@ interface ItemRowProps {
 }
 
 export function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
+  const { t } = useLang()
   const consumerNames =
     item.consumers.length === 0
-      ? 'Semua pemesan'
+      ? t('items.all_consumers')
       : item.consumers
           .map((c) => (c.quantity > 1 ? `${c.participant.name} (${c.quantity}×)` : c.participant.name))
           .join(', ')
@@ -26,16 +28,16 @@ export function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
   const netAmount = r2(rawAmount - (item.discount ?? 0))
 
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 border-t border-gray-100">
+    <div className="flex items-center gap-3 py-2.5 px-4 border-t border-gray-100 dark:border-gray-800">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{item.name}</p>
         <p className="text-xs text-brand-gray truncate">{consumerNames}</p>
         {item.note && <p className="text-xs text-brand-gray italic">{item.note}</p>}
         {(item.discount ?? 0) > 0 && (
-          <p className="text-xs text-brand-green">diskon {formatIDR(item.discount)}</p>
+          <p className="text-xs text-brand-green">{t('items.discount_label')} {formatIDR(item.discount)}</p>
         )}
       </div>
-      <p className="text-sm font-medium text-gray-700 shrink-0">{formatIDR(netAmount)}</p>
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-200 shrink-0">{formatIDR(netAmount)}</p>
       {onEdit && (
         <IconButton label="Ubah item" onClick={onEdit}>
           ✏️

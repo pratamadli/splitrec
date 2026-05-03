@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Input } from '@/src/components/atoms/Input'
 import { Button } from '@/src/components/atoms/Button'
+import { useLang } from '@/src/contexts/LanguageContext'
 
 interface AddParticipantFormProps {
   onSubmit: (name: string) => Promise<void>
@@ -12,6 +13,7 @@ interface AddParticipantFormProps {
 }
 
 export function AddParticipantForm({ onSubmit, isLoading, autoFocus, showHint }: AddParticipantFormProps) {
+  const { t } = useLang()
   const [name, setName] = useState('')
   const [error, setError] = useState(false)
 
@@ -32,22 +34,22 @@ export function AddParticipantForm({ onSubmit, isLoading, autoFocus, showHint }:
         <Input
           value={name}
           onChange={(e) => { setName(e.target.value); if (error) setError(false) }}
-          placeholder="Nama Pacrticipant"
+          placeholder={t('participants.name_placeholder')}
           className="w-full"
           maxLength={100}
           disabled={isLoading}
           autoFocus={autoFocus}
         />
-        <Button type="submit" isLoading={isLoading} className="w-1/5" >
-          Tambah
+        <Button type="submit" isLoading={isLoading} className="w-1/5">
+          {t('common.add')}
         </Button>
       </form>
       {error && (
-        <p className="text-xs text-destructive mt-0.5">Nama tidak boleh kosong</p>
+        <p className="text-xs text-destructive mt-0.5">{t('participants.name_required')}</p>
       )}
       {!error && showHint && (
         <p className="text-xs text-brand-gray mt-0.5">
-          Tambah minimal 2 orang untuk mulai split bill
+          {t('participants.add_min')}
         </p>
       )}
     </div>

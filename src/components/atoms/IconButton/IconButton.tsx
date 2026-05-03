@@ -14,7 +14,7 @@ export function IconButton({ label, variant = 'ghost', className, children, ...p
       aria-label={label}
       className={cn(
         'h-9 w-9 flex items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue disabled:opacity-50',
-        variant === 'ghost' && 'text-brand-gray hover:bg-gray-100',
+        variant === 'ghost' && 'text-brand-gray hover:bg-gray-100 dark:hover:bg-gray-800',
         variant === 'danger' && 'text-destructive hover:bg-destructive/10',
         className
       )}

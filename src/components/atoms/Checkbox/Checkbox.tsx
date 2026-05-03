@@ -18,9 +18,9 @@ export function Checkbox({ id, label, checked, onChange, className }: CheckboxPr
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-gray-300 text-brand-blue accent-brand-blue cursor-pointer"
+        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-brand-blue accent-brand-blue cursor-pointer"
       />
-      <span className="text-sm text-gray-700">{label}</span>
+      <span className="text-sm text-gray-700 dark:text-gray-200">{label}</span>
     </label>
   )
 }

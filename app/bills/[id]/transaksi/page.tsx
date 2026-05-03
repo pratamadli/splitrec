@@ -6,6 +6,7 @@ import { useBill } from '@/src/hooks/useBill'
 import { usePurchase } from '@/src/hooks/usePurchase'
 import { useSettlement } from '@/src/hooks/useSettlement'
 import { useToast } from '@/src/hooks/useToast'
+import { useLang } from '@/src/contexts/LanguageContext'
 import { BillEditLayout } from '@/src/components/templates/BillEditLayout'
 import { BillHeader } from '@/src/components/organisms/BillHeader'
 import { PurchaseList } from '@/src/components/organisms/PurchaseList'
@@ -22,6 +23,7 @@ interface PageProps {
 export default function BillTransaksiPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
+  const { t } = useLang()
   const { bill, isLoading, mutate, updateTitle, deviceId } = useBill(id)
   const { addPurchase, updatePurchase, deletePurchase, addItem, updateItem, deleteItem } = usePurchase(id, mutate)
   const { calculate, isCalculating } = useSettlement(id, mutate)
@@ -34,7 +36,7 @@ export default function BillTransaksiPage({ params }: PageProps) {
     if (result) {
       router.push(`/bills/${id}/result`)
     } else {
-      addToast('Gagal menghitung. Coba lagi.', 'error')
+      addToast(t('error.calculate'), 'error')
     }
   }
 
@@ -42,7 +44,7 @@ export default function BillTransaksiPage({ params }: PageProps) {
     try {
       return await addPurchase(data)
     } catch {
-      addToast('Gagal menambah transaksi', 'error')
+      addToast(t('error.add_purchase'), 'error')
     }
   }
 
@@ -53,7 +55,7 @@ export default function BillTransaksiPage({ params }: PageProps) {
     try {
       await updatePurchase(purchaseId, data)
     } catch {
-      addToast('Gagal mengupdate transaksi', 'error')
+      addToast(t('error.update_purchase'), 'error')
     }
   }
 
@@ -61,7 +63,7 @@ export default function BillTransaksiPage({ params }: PageProps) {
     try {
       await deletePurchase(purchaseId)
     } catch {
-      addToast('Gagal menghapus transaksi', 'error')
+      addToast(t('error.delete_purchase'), 'error')
     }
   }
 
@@ -72,7 +74,7 @@ export default function BillTransaksiPage({ params }: PageProps) {
     try {
       await addItem(purchaseId, data)
     } catch {
-      addToast('Gagal menambah item', 'error')
+      addToast(t('error.add_item'), 'error')
     }
   }
 
@@ -83,7 +85,7 @@ export default function BillTransaksiPage({ params }: PageProps) {
     try {
       await updateItem(itemId, data)
     } catch {
-      addToast('Gagal mengupdate item', 'error')
+      addToast(t('error.update_item'), 'error')
     }
   }
 
@@ -91,13 +93,13 @@ export default function BillTransaksiPage({ params }: PageProps) {
     try {
       await deleteItem(itemId)
     } catch {
-      addToast('Gagal menghapus item', 'error')
+      addToast(t('error.delete_item'), 'error')
     }
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <Spinner size="md" />
       </div>
     )
@@ -105,8 +107,8 @@ export default function BillTransaksiPage({ params }: PageProps) {
 
   if (!bill) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Tagihan tidak ditemukan.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <p className="text-gray-500 dark:text-gray-400">{t('common.bill_not_found')}</p>
       </div>
     )
   }
@@ -157,17 +159,17 @@ export default function BillTransaksiPage({ params }: PageProps) {
               <Button
                 variant="ghost"
                 onClick={() => router.push(`/bills/${id}`)}
-                className="flex-1 h-14 border border-gray-200"
+                className="flex-1 h-14 border border-gray-200 dark:border-gray-700"
               >
-                ← Peserta
+                {t('bill.back_to_participants')}
               </Button>
               <Button
                 onClick={handleCalculate}
                 isLoading={isCalculating}
                 disabled={!hasTransactions || !allPerItemPurchasesBalanced}
-                className="flex-[2] h-14 text-base font-semibold"
+                className="flex-2 h-14 text-base font-semibold"
               >
-                Hitung Pembagian
+                {t('bill.calculate_split')}
               </Button>
             </div>
           ) : undefined

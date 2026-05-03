@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useBill } from '@/src/hooks/useBill'
 import { useBillParticipants } from '@/src/hooks/useBillParticipants'
 import { useToast } from '@/src/hooks/useToast'
+import { useLang } from '@/src/contexts/LanguageContext'
 import { BillEditLayout } from '@/src/components/templates/BillEditLayout'
 import { BillHeader } from '@/src/components/organisms/BillHeader'
 import { ParticipantList } from '@/src/components/organisms/ParticipantList'
@@ -20,6 +21,7 @@ interface PageProps {
 export default function BillPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
+  const { t } = useLang()
   const { bill, isLoading, mutate, updateTitle, deviceId } = useBill(id)
   const { addParticipant, deleteParticipant } = useBillParticipants(id, mutate)
   const { toasts, addToast, dismiss } = useToast()
@@ -30,7 +32,7 @@ export default function BillPage({ params }: PageProps) {
     try {
       await addParticipant(name)
     } catch {
-      addToast('Gagal menambah peserta', 'error')
+      addToast(t('error.add_participant'), 'error')
     }
   }
 
@@ -38,13 +40,13 @@ export default function BillPage({ params }: PageProps) {
     try {
       await deleteParticipant(participantId)
     } catch {
-      addToast('Gagal menghapus peserta', 'error')
+      addToast(t('error.delete_participant'), 'error')
     }
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <Spinner size="md" />
       </div>
     )
@@ -52,8 +54,8 @@ export default function BillPage({ params }: PageProps) {
 
   if (!bill) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Tagihan tidak ditemukan.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <p className="text-gray-500 dark:text-gray-400">{t('common.bill_not_found')}</p>
       </div>
     )
   }
@@ -93,7 +95,7 @@ export default function BillPage({ params }: PageProps) {
             <div className="flex flex-col gap-2">
               {!canProceed && (
                 <p className="text-xs text-center text-brand-gray">
-                  Tambah minimal 2 peserta untuk melanjutkan
+                  {t('bill.add_min_participants')}
                 </p>
               )}
               <Button
@@ -101,7 +103,7 @@ export default function BillPage({ params }: PageProps) {
                 disabled={!canProceed}
                 className="w-full h-14 text-base font-semibold"
               >
-                Lanjut ke Transaksi
+                {t('bill.next_to_transactions')}
               </Button>
             </div>
           ) : undefined
