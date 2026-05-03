@@ -55,12 +55,20 @@ export default async function SharePage({ params }: PageProps) {
         })),
       })),
     })),
-    debts: raw.debts.map((d) => ({
-      id: d.id,
-      amount: Number(d.amount),
-      from: { id: d.from.id, name: d.from.name },
-      to: { id: d.to.id, name: d.to.name },
-    })),
+    debts: (() => {
+      const paidSet = new Set(
+        raw.settlements
+          .filter((s) => s.status === 'paid')
+          .map((s) => `${s.fromParticipantId}:${s.toParticipantId}`)
+      )
+      return raw.debts.map((d) => ({
+        id: d.id,
+        amount: Number(d.amount),
+        from: { id: d.from.id, name: d.from.name },
+        to: { id: d.to.id, name: d.to.name },
+        paid: paidSet.has(`${d.fromParticipantId}:${d.toParticipantId}`),
+      }))
+    })(),
   }
 
   return <ShareView bill={bill} />

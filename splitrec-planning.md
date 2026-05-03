@@ -1115,6 +1115,26 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 17. Changelog
 
+### v1.4.2 — 2026-05-03
+**Review fixes: lunas flag, copy format, teks Indonesia, mobile buttons, Buat Tagihan Baru**
+
+- `ShareView`: tombol "Buat Tagihan Baru" ditambah — semua viewer bisa buat tagihan baru langsung dari halaman share
+- `SettlementRow`: fix format copy — setiap hutang per baris sendiri (`"[nama] bayar [ke] Rp X\n..."`) agar mudah dibaca saat dipaste di WA
+- Teks distandarisasi ke bahasa Indonesia: `'Edit'` → `'Ubah'` di tombol header result page, BankInfoCard, dan aria-label IconButton di `ItemRow` dan `PurchaseHeader`
+- `Button` atom: `whitespace-nowrap` ditambah ke base class — semua tombol tidak bisa wrap ke 2 baris di mobile
+- `BankInfoCard`: fix `flex-2` (non-standard) + tambah `whitespace-nowrap` pada tombol Simpan
+- **Fitur tandai lunas (settlements)**: tabel `settlements` yang sudah ada di schema diaktifkan sebagai fitur lunas-marking tanpa migrasi DB baru
+  - `settlementsRelations` ditambah ke `src/db/schema.ts`
+  - `DebtData.paid: boolean` ditambah ke types
+  - `markSettlement()` service: delete + insert ke tabel `settlements`, keyed by `(billId, fromParticipantId, toParticipantId)`
+  - `paid` field mengalir dari DB → semua API response (`/bills/[id]`, `/share/[token]`, server component `/s/[token]`) → UI
+  - Route baru: `POST /api/bills/[id]/settlements` — tidak memerlukan auth (trust-based, siapapun dengan link bisa toggle)
+  - `toggleSettlement()` ditambah ke `useBill` hook
+  - `SettlementRow`: tombol "Tandai Lunas" / "✓ Lunas" muncul untuk semua user (creator maupun viewer). Expanded row per creditor menampilkan status + toggle. Header row menampilkan "✓ Lunas" dan strikethrough amount jika semua hutang lunas
+  - `ShareView`: `paidOverrides` state untuk optimistic update — klik toggle langsung update UI, API call dikirim background
+
+---
+
 ### v1.4.1 — 2026-05-02
 **Bug fixes**
 - Fix info rekening (bank name + nomor rekening) tidak muncul di halaman share (`/s/[token]`) meskipun sudah diisi — dua titik yang sama-sama strip field saat serialisasi: `app/api/bills/share/[token]/route.ts` (API route) dan `app/s/[token]/page.tsx` (server component).

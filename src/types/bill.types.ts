@@ -39,6 +39,7 @@ export interface DebtData {
   amount: number
   from: ParticipantData
   to: ParticipantData
+  paid: boolean
 }
 
 export interface BillData {

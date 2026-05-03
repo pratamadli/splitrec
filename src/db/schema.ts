@@ -193,6 +193,12 @@ export const debtsRelations = relations(debts, ({ one }) => ({
   to: one(participants, { fields: [debts.toParticipantId], references: [participants.id] }),
 }))
 
+export const settlementsRelations = relations(settlements, ({ one }) => ({
+  bill: one(bills, { fields: [settlements.billId], references: [bills.id] }),
+  from: one(participants, { fields: [settlements.fromParticipantId], references: [participants.id] }),
+  to: one(participants, { fields: [settlements.toParticipantId], references: [participants.id] }),
+}))
+
 // Exported types
 export type Bill = typeof bills.$inferSelect
 export type NewBill = typeof bills.$inferInsert

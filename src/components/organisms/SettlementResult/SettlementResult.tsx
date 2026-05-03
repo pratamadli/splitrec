@@ -11,6 +11,7 @@ interface SettlementResultProps {
   result: CalculateResult | null
   isOwner: boolean
   onUpdateBankInfo?: (participantId: string, bankName: string | null, bankAccount: string | null) => Promise<void>
+  onTogglePaid?: (fromParticipantId: string, toParticipantId: string, paid: boolean) => void
 }
 
 function r2(n: number) { return Math.round(n * 100) / 100 }
@@ -145,7 +146,7 @@ function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-2 h-8 rounded-lg text-xs font-semibold text-white bg-brand-blue disabled:opacity-50"
+            className="flex-2 h-8 rounded-lg text-xs font-semibold text-white bg-brand-blue disabled:opacity-50 whitespace-nowrap"
           >
             {saving ? 'Menyimpan…' : 'Simpan'}
           </button>
@@ -171,7 +172,7 @@ function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
           onClick={() => setEditing(true)}
           className="text-xs text-brand-blue shrink-0"
         >
-          {hasBankInfo ? 'Edit' : '+ Isi'}
+          {hasBankInfo ? 'Ubah' : '+ Isi'}
         </button>
       )}
     </div>
@@ -180,31 +181,43 @@ function BankInfoCard({ participant, isOwner, onSave }: BankInfoCardProps) {
 
 // ─── SettlementResult ─────────────────────────────────────────────────────────
 
-export function SettlementResult({ bill, result, isOwner, onUpdateBankInfo }: SettlementResultProps) {
+export function SettlementResult({ bill, result, isOwner, onUpdateBankInfo, onTogglePaid }: SettlementResultProps) {
   const debts = result?.debts ?? bill.debts.map((d) => ({
     fromParticipantId: d.from.id,
     fromName: d.from.name,
     toParticipantId: d.to.id,
     toName: d.to.name,
     amount: d.amount,
+    paid: d.paid,
   }))
 
   const participantsMap = new Map<string, ParticipantData>(
     bill.participants.map((p) => [p.id, p])
   )
 
-  // Group debts by payer, including creditor bank info
-  const debtsByFrom = new Map<string, Array<{ toName: string; amount: number; bankName?: string | null; bankAccount?: string | null }>>()
+  // Group debts by payer, including creditor bank info and paid status
+  const debtsByFrom = new Map<string, Array<{
+    fromParticipantId: string
+    toParticipantId: string
+    toName: string
+    amount: number
+    bankName?: string | null
+    bankAccount?: string | null
+    paid?: boolean
+  }>>()
   for (const debt of debts) {
     const creditor = participantsMap.get(debt.toParticipantId)
     const existing = debtsByFrom.get(debt.fromParticipantId) ?? []
     debtsByFrom.set(debt.fromParticipantId, [
       ...existing,
       {
+        fromParticipantId: debt.fromParticipantId,
+        toParticipantId: debt.toParticipantId,
         toName: debt.toName,
         amount: debt.amount,
         bankName: creditor?.bankName,
         bankAccount: creditor?.bankAccount,
+        paid: (debt as { paid?: boolean }).paid ?? false,
       },
     ])
   }
@@ -268,6 +281,7 @@ export function SettlementResult({ bill, result, isOwner, onUpdateBankInfo }: Se
             debts={myDebts}
             received={received}
             breakdown={breakdown}
+            onTogglePaid={onTogglePaid}
           />
         )
       })}

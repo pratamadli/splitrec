@@ -19,7 +19,7 @@ interface PageProps {
 export default function BillResultPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
-  const { bill, isLoading, mutate, deviceId } = useBill(id)
+  const { bill, isLoading, mutate, deviceId, toggleSettlement } = useBill(id)
   const { updateBankInfo } = useBillParticipants(id, mutate)
   const [creating, setCreating] = useState(false)
 
@@ -27,6 +27,10 @@ export default function BillResultPage({ params }: PageProps) {
 
   const handleUpdateBankInfo = async (participantId: string, bankName: string | null, bankAccount: string | null) => {
     await updateBankInfo(participantId, bankName, bankAccount)
+  }
+
+  const handleTogglePaid = async (fromParticipantId: string, toParticipantId: string, paid: boolean) => {
+    await toggleSettlement(fromParticipantId, toParticipantId, paid)
   }
 
   const handleCreateNew = async () => {
@@ -80,7 +84,7 @@ export default function BillResultPage({ params }: PageProps) {
                 size="sm"
                 onClick={() => router.push(`/bills/${id}/transaksi`)}
               >
-                Edit
+                Ubah
               </Button>
             )}
           </div>
@@ -101,6 +105,7 @@ export default function BillResultPage({ params }: PageProps) {
           result={null}
           isOwner={isOwner}
           onUpdateBankInfo={handleUpdateBankInfo}
+          onTogglePaid={handleTogglePaid}
         />
       </div>
 

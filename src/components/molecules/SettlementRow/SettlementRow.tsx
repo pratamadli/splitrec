@@ -15,8 +15,8 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="text-xs text-brand-gray hover:text-gray-700 ml-2 shrink-0 underline"
-      title="Salin untuk kirim ke WA"
+      className="text-xs text-brand-gray hover:text-gray-700 shrink-0 underline whitespace-nowrap"
+      title="Salin"
     >
       {copied ? 'Disalin!' : 'Salin'}
     </button>
@@ -29,38 +29,50 @@ export interface BreakdownLine {
   items: Array<{ name: string; amount: number }> | null
 }
 
-interface SettlementRowProps {
-  name: string
-  debts: Array<{ toName: string; amount: number; bankName?: string | null; bankAccount?: string | null }>
-  received: number
-  breakdown: BreakdownLine[]
+interface DebtEntry {
+  fromParticipantId: string
+  toParticipantId: string
+  toName: string
+  amount: number
+  bankName?: string | null
+  bankAccount?: string | null
+  paid?: boolean
 }
 
-export function SettlementRow({ name, debts, received, breakdown }: SettlementRowProps) {
+interface SettlementRowProps {
+  name: string
+  debts: DebtEntry[]
+  received: number
+  breakdown: BreakdownLine[]
+  onTogglePaid?: (fromParticipantId: string, toParticipantId: string, paid: boolean) => void
+}
+
+export function SettlementRow({ name, debts, received, breakdown, onTogglePaid }: SettlementRowProps) {
   const [expanded, setExpanded] = useState(false)
 
   const isDebtor = debts.length > 0
   const isCreditor = !isDebtor && received > 0.01
   const totalOwed = debts.reduce((s, d) => s + d.amount, 0)
+  const allPaid = isDebtor && debts.length > 0 && debts.every((d) => d.paid)
 
   let statusText: string
-  let amountText: string
   let amountColor: string
 
   if (isDebtor) {
     const payTo = debts.map((d) => d.toName).join(', ')
-    statusText = `bayar ke ${payTo}`
-    amountText = formatIDR(totalOwed)
-    amountColor = 'text-destructive'
+    statusText = allPaid ? `lunas ke ${payTo}` : `bayar ke ${payTo}`
+    amountColor = allPaid ? 'text-brand-green' : 'text-destructive'
   } else if (isCreditor) {
     statusText = 'menerima'
-    amountText = formatIDR(received)
     amountColor = 'text-brand-green'
   } else {
     statusText = 'lunas'
-    amountText = ''
     amountColor = 'text-brand-gray'
   }
+
+  const copyText = debts
+    .map((d) => d.amount)
+    .join('\n')
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -70,17 +82,21 @@ export function SettlementRow({ name, debts, received, breakdown }: SettlementRo
       >
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-800">{name}</p>
-          <p className={cn('text-xs', isDebtor ? 'text-brand-gray' : isCreditor ? 'text-brand-green' : 'text-brand-gray')}>
+          <p className={cn('text-xs', allPaid ? 'text-brand-green' : isDebtor ? 'text-brand-gray' : isCreditor ? 'text-brand-green' : 'text-brand-gray')}>
             {statusText}
           </p>
         </div>
-        {amountText && (
-          <p className={cn('text-lg font-semibold shrink-0', amountColor)}>{amountText}</p>
-        )}
         {isDebtor && (
-          <CopyButton
-            text={debts.map((d) => `${name} bayar ${d.toName} ${formatIDR(d.amount)}`).join(', ')}
-          />
+          <p className={cn('text-lg font-semibold shrink-0', allPaid ? 'line-through text-brand-gray' : amountColor)}>
+            {formatIDR(totalOwed)}
+          </p>
+        )}
+        {!isDebtor && received > 0.01 && (
+          <p className={cn('text-lg font-semibold shrink-0', amountColor)}>{formatIDR(received)}</p>
+        )}
+        {isDebtor && !allPaid && <CopyButton text={copyText} />}
+        {allPaid && (
+          <span className="text-xs font-semibold text-brand-green shrink-0 whitespace-nowrap">✓ Lunas</span>
         )}
         <svg
           className={cn('h-4 w-4 text-gray-400 shrink-0 transition-transform duration-200', expanded && 'rotate-90')}
@@ -95,23 +111,47 @@ export function SettlementRow({ name, debts, received, breakdown }: SettlementRo
 
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
-          {isDebtor && debts.some((d) => d.bankName || d.bankAccount) && (
-            <div className="mb-3 flex flex-col gap-1.5">
-              {debts.map((d, i) =>
-                (d.bankName || d.bankAccount) ? (
-                  <div key={i} className="rounded-lg bg-brand-blue/5 border border-brand-blue/15 px-3 py-2 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-brand-blue truncate">{d.toName}</p>
+          {isDebtor && (
+            <div className="mb-3 flex flex-col gap-2">
+              {debts.map((d, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'rounded-lg px-3 py-2 flex items-center justify-between gap-2',
+                    d.paid
+                      ? 'bg-brand-green/5 border border-brand-green/20'
+                      : 'bg-brand-blue/5 border border-brand-blue/15'
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className={cn('text-xs font-medium truncate', d.paid ? 'text-brand-green' : 'text-brand-blue')}>
+                      {d.toName}
+                    </p>
+                    {(d.bankName || d.bankAccount) && (
                       <p className="text-xs text-gray-600 truncate">
                         {[d.bankName, d.bankAccount].filter(Boolean).join(' · ')}
                       </p>
-                    </div>
-                    {d.bankAccount && (
-                      <CopyButton text={d.bankAccount} />
                     )}
                   </div>
-                ) : null
-              )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {d.bankAccount && <CopyButton text={d.bankAccount} />}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onTogglePaid?.(d.fromParticipantId, d.toParticipantId, !d.paid)
+                      }}
+                      className={cn(
+                        'text-xs font-medium rounded-md px-2 py-1 whitespace-nowrap',
+                        d.paid
+                          ? 'text-brand-green bg-brand-green/10'
+                          : 'text-brand-blue bg-brand-blue/10'
+                      )}
+                    >
+                      {d.paid ? '✓ Lunas' : 'Tandai Lunas'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
           {breakdown.length === 0 ? (
