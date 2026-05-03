@@ -37,7 +37,7 @@ export function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
       </div>
       <p className="text-sm font-medium text-gray-700 shrink-0">{formatIDR(netAmount)}</p>
       {onEdit && (
-        <IconButton label="Edit item" onClick={onEdit}>
+        <IconButton label="Ubah item" onClick={onEdit}>
           ✏️
         </IconButton>
       )}

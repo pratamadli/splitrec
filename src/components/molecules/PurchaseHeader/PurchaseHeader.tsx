@@ -29,7 +29,7 @@ export function PurchaseHeader({ purchase, payer, badge, onEdit, onDelete }: Pur
       </div>
       <p className="font-semibold text-gray-800 shrink-0 text-sm">{formatIDR(purchase.totalAmount)}</p>
       {onEdit && (
-        <IconButton label="Edit" onClick={onEdit}>
+        <IconButton label="Ubah" onClick={onEdit}>
           ✏️
         </IconButton>
       )}

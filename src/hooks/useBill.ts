@@ -36,5 +36,14 @@ export function useBill(billId: string) {
     await mutate()
   }
 
-  return { bill: data, error, isLoading, mutate, updateTitle, updateSplitMode, deviceId }
+  const toggleSettlement = async (fromParticipantId: string, toParticipantId: string, paid: boolean) => {
+    await fetch(`/api/bills/${billId}/settlements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+      body: JSON.stringify({ fromParticipantId, toParticipantId, paid }),
+    })
+    await mutate()
+  }
+
+  return { bill: data, error, isLoading, mutate, updateTitle, updateSplitMode, deviceId, toggleSettlement }
 }

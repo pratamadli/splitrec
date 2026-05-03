@@ -10,6 +10,12 @@ export async function GET(_: Request, { params }: Params) {
     const bill = await getBillByToken(token)
     if (!bill) return apiError('Bill not found', 404)
 
+    const paidSet = new Set(
+      bill.settlements
+        .filter((s) => s.status === 'paid')
+        .map((s) => `${s.fromParticipantId}:${s.toParticipantId}`)
+    )
+
     return NextResponse.json({
       id: bill.id,
       title: bill.title,
@@ -40,6 +46,7 @@ export async function GET(_: Request, { params }: Params) {
         amount: Number(d.amount),
         from: { id: d.from.id, name: d.from.name },
         to: { id: d.to.id, name: d.to.name },
+        paid: paidSet.has(`${d.fromParticipantId}:${d.toParticipantId}`),
       })),
     })
   } catch {

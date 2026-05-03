@@ -2,7 +2,7 @@
 
 > **Tagline:** Split receipts, not friendships.
 > **Status:** Pre-development · MVP phase
-> **Last updated:** 2026-04-30
+> **Last updated:** 2026-05-03
 > **Sources:** Planning sessions + PRD (MVP) + Product Guide + Database schema review + Brand logo (splitrec_logo.png)
 
 ---
@@ -25,6 +25,7 @@
 14. [Development Roadmap](#14-development-roadmap)
 15. [Success Criteria](#15-success-criteria)
 16. [Key Principles](#16-key-principles)
+17. [Changelog](#17-changelog)
 
 ---
 
@@ -935,7 +936,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 14. Development Roadmap
 
-> **Status terakhir diupdate:** 2026-04-28
+> **Status terakhir diupdate:** 2026-05-03
 > **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4 · @vercel/analytics 2.0.1 · @vercel/speed-insights 2.0.0
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
 > **Favicon:** Sudah fix — `app/icon.png` (copy dari `logo-icon.png`), Next.js 13+ otomatis pakai sebagai favicon. `public/favicon.ico` lama tidak perlu dihapus.
@@ -1036,6 +1037,32 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ---
 
+**Phase 3 post-release features (2026-05-02) — v1.4.0: UX feedback improvements:**
+- [x] **`AddItemForm` — semua consumer default tercentang** — `selectedIds` diinisialisasi dengan semua `participant.id`. User tinggal uncheck siapa yang tidak ikut. `useEffect` re-sync jika peserta baru ditambah saat form terbuka.
+- [x] **`AddItemForm` — qty per orang collapsed by default** — Toggle "Atur qty per orang (opsional)" tersembunyi di bawah participant selector. Qty inputs hanya tampil jika toggle aktif.
+- [x] **`AddItemForm` — submit dengan Enter** — Field terakhir (harga) pasang `onKeyDown`: `Enter` → submit jika form valid.
+- [x] **`AddItemForm` — form reset bukan close setelah submit** — Setelah tambah item, form clear dan tetap terbuka. Tombol "Batal" untuk tutup eksplisit. `selectedIds` direset ke semua tercentang.
+- [x] **`AddParticipantForm` — submit dengan Enter** — Input nama pasang `onKeyDown` untuk trigger submit.
+- [x] **`AddParticipantForm` — hint minimal 2 peserta** — Label hint di bawah input, hanya tampil jika `participants.length < 2`.
+- [x] **`ParticipantList` — optimistic chip** — Chip peserta muncul sebelum API response, rollback jika gagal.
+- [x] **`StepIndicator`** — Komponen baru `src/components/molecules/StepIndicator/StepIndicator.tsx`. 3 step: Peserta → Transaksi → Hasil. Status `done`/`active`/`pending` dihitung dari jumlah peserta dan transaksi. Ditampilkan di `BillEditLayout` dan halaman result (owner only).
+- [x] **Section Transaksi dimmed** — `opacity-40 pointer-events-none` jika `participants.length < 2`.
+- [x] **`SettlementResult` — summary banner** — Banner hijau di atas list: "Tagihan selesai dihitung!" + jumlah orang + jumlah transfer. Alternatif "Semua sudah lunas! 🎉" jika tidak ada hutang.
+- [x] **`SettlementRow` — nominal lebih besar** — Amount ditampilkan `text-lg font-semibold text-brand-green`, bukan `Badge`.
+- [x] **`SettlementRow` — tombol "Salin" per baris** — Copy teks `"[dari] bayar [ke] Rp X"` ke clipboard + feedback "Disalin!".
+- [x] **`SettlementResult` — bank info creditor** — Section "Info Rekening Penerima" ditampilkan di atas settlement list. Owner bisa isi/edit nama bank dan nomor rekening per creditor. Non-owner melihat info yang sudah diisi (atau "Belum diisi"). Tombol copy nomor rekening.
+- [x] **`useBillParticipants` — `updateBankInfo`** — PATCH `/api/participants/:id` dengan `{ bankName, bankAccount }`.
+- [x] **DB migration `bank_name`/`bank_account`** — Dua kolom `text` nullable ditambah ke tabel `participants` (`scripts/apply-bank-info-migration.mjs`, applied via Neon Serverless HTTP).
+- [x] **`ParticipantData` types** — `bankName?: string | null` dan `bankAccount?: string | null` ditambah ke interface.
+- [x] **`app/bills/[id]/transaksi/page.tsx`** — Halaman edit terpisah untuk transaksi. `app/bills/[id]/page.tsx` difokuskan ke peserta + step navigator.
+- [x] **Algorithm fix** — Kalkulasi charges distribution diperbaiki.
+
+**Phase 3 post-release bug fixes (2026-05-02) — v1.4.1: Share page bank info:**
+- [x] **`app/api/bills/share/[token]/route.ts` — bank info missing** — `bankName` dan `bankAccount` tidak diinclude di response participants. Fix: tambah kedua field ke mapping.
+- [x] **`app/s/[token]/page.tsx` — bank info missing** — Server component juga strip `bankName`/`bankAccount` saat build `BillData`. Fix: tambah kedua field ke mapping participants.
+
+---
+
 ### Phase 4 — Growth & monetization ⏳ BELUM DIMULAI
 
 - [ ] SEO: `generateMetadata()`, branded OG image per bill
@@ -1050,11 +1077,10 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.3.0 di browser — jalankan `pnpm dev`, test: buat tagihan per item → tambah peserta → tambah item (dengan qty berbeda + diskon item) → isi charges (pajak/service/gratuity/diskon) → cek auto-populate diskon jika melebihi total → tunggu auto-save → klik "Hitung Pembagian" → halaman result → cek breakdown per peserta
-2. **[HARUS DILAKUKAN MANUAL]** Test balance enforcement — coba input item yang totalnya melebihi nilai transaksi, pastikan: (a) diskon auto-fill, (b) alert muncul di bawah baris diskon, (c) button disabled sampai balance
-3. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — test ChargesPanel, field diskon item di AddItemForm, ItemRow dengan discount badge, button non-sticky
-4. **[HARUS DILAKUKAN MANUAL]** Test share page — pastikan halaman `/s/[token]` menampilkan charges dan per-item discount dengan benar untuk non-owner view
-5. Setelah mobile audit: Phase 4 (SEO, analytics, AdSense)
+1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.4.1 di browser — jalankan `pnpm dev`, test: buat tagihan → tambah peserta → tambah transaksi + item → hitung pembagian → isi rekening creditor → share link → buka di incognito/device lain → pastikan info rekening muncul
+2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — test StepIndicator, AddItemForm (default semua tercentang, qty toggle), SettlementRow (nominal besar, tombol Salin), bank info card
+3. **[DEPLOY]** Deploy ke production — `vercel --prod`
+4. Setelah mobile audit dan deploy: Phase 4 (SEO, analytics, AdSense)
 
 ---
 
@@ -1082,6 +1108,142 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 9. **Two result concepts, clearly separated.** `debts` = ephemeral computed result. `settlements` = confirmed payment intent.
 10. **Brand consistency.** `brand-blue` for primary actions, `brand-green` for positive/success states, always on white background.
 11. **Readable above clever.** Any file understandable in under 2 minutes.
+
+---
+
+---
+
+## 17. Changelog
+
+### v1.4.2 — 2026-05-03
+**Review fixes: lunas flag, copy format, teks Indonesia, mobile buttons, Buat Tagihan Baru**
+
+- `ShareView`: tombol "Buat Tagihan Baru" ditambah — semua viewer bisa buat tagihan baru langsung dari halaman share
+- `SettlementRow`: fix format copy — setiap hutang per baris sendiri (`"[nama] bayar [ke] Rp X\n..."`) agar mudah dibaca saat dipaste di WA
+- Teks distandarisasi ke bahasa Indonesia: `'Edit'` → `'Ubah'` di tombol header result page, BankInfoCard, dan aria-label IconButton di `ItemRow` dan `PurchaseHeader`
+- `Button` atom: `whitespace-nowrap` ditambah ke base class — semua tombol tidak bisa wrap ke 2 baris di mobile
+- `BankInfoCard`: fix `flex-2` (non-standard) + tambah `whitespace-nowrap` pada tombol Simpan
+- **Fitur tandai lunas (settlements)**: tabel `settlements` yang sudah ada di schema diaktifkan sebagai fitur lunas-marking tanpa migrasi DB baru
+  - `settlementsRelations` ditambah ke `src/db/schema.ts`
+  - `DebtData.paid: boolean` ditambah ke types
+  - `markSettlement()` service: delete + insert ke tabel `settlements`, keyed by `(billId, fromParticipantId, toParticipantId)`
+  - `paid` field mengalir dari DB → semua API response (`/bills/[id]`, `/share/[token]`, server component `/s/[token]`) → UI
+  - Route baru: `POST /api/bills/[id]/settlements` — tidak memerlukan auth (trust-based, siapapun dengan link bisa toggle)
+  - `toggleSettlement()` ditambah ke `useBill` hook
+  - `SettlementRow`: tombol "Tandai Lunas" / "✓ Lunas" muncul untuk semua user (creator maupun viewer). Expanded row per creditor menampilkan status + toggle. Header row menampilkan "✓ Lunas" dan strikethrough amount jika semua hutang lunas
+  - `ShareView`: `paidOverrides` state untuk optimistic update — klik toggle langsung update UI, API call dikirim background
+
+---
+
+### v1.4.1 — 2026-05-02
+**Bug fixes**
+- Fix info rekening (bank name + nomor rekening) tidak muncul di halaman share (`/s/[token]`) meskipun sudah diisi — dua titik yang sama-sama strip field saat serialisasi: `app/api/bills/share/[token]/route.ts` (API route) dan `app/s/[token]/page.tsx` (server component).
+
+---
+
+### v1.4.0 — 2026-05-02
+**UX improvements berdasarkan feedback pengguna pertama (NPS 5/10 → target 8/10)**
+
+- `AddItemForm`: semua consumer default tercentang — user tinggal uncheck siapa yang tidak ikut
+- `AddItemForm`: qty per orang collapsed by default di balik toggle "Atur qty per orang (opsional)"
+- `AddItemForm`: submit dengan Enter, form reset (bukan close) setelah tambah item
+- `AddParticipantForm`: submit dengan Enter, hint "Tambah minimal 2 peserta"
+- `ParticipantList`: optimistic chip muncul sebelum API response
+- `StepIndicator`: komponen baru, 3 langkah (Peserta → Transaksi → Hasil), tampil di halaman edit dan result
+- Section Transaksi dimmed (`opacity-40 pointer-events-none`) jika peserta < 2
+- `SettlementResult`: summary banner hijau di atas list ("Tagihan selesai dihitung!" / "Semua sudah lunas! 🎉")
+- `SettlementRow`: nominal transfer ditampilkan `text-lg font-semibold text-brand-green` (bukan Badge kecil)
+- `SettlementRow`: tombol "Salin" per baris — copy teks `"[dari] bayar [ke] Rp X"` ke clipboard
+- `SettlementResult`: section "Info Rekening Penerima" — owner isi/edit nama bank + no rekening per creditor, non-owner lihat hasilnya
+- DB migration: kolom `bank_name` dan `bank_account` (text, nullable) ditambah ke tabel `participants`
+- `app/bills/[id]/transaksi/page.tsx`: halaman transaksi dipisah dari halaman peserta
+- Algorithm fix: perbaikan distribusi charges
+
+---
+
+### v1.3.1 — 2026-04-30
+**Observability**
+- Tambah `@vercel/analytics` — page views + visitor data otomatis ke Vercel dashboard di production
+- Tambah `@vercel/speed-insights` — Core Web Vitals (LCP, FID, CLS) dilacak otomatis
+
+---
+
+### v1.3.0 — 2026-04-28
+**Per-item discount + balance enforcement + UX polish**
+
+- DB migration: kolom `discount numeric(15,2) NOT NULL DEFAULT 0` ditambah ke tabel `items`
+- `AddItemForm`: field "Diskon item (opsional)" per item
+- `ItemRow`: baris diskon ditampilkan jika > 0
+- Algorithm: per-item discount dikurangi dari cost item sebelum distribusi ke consumers (proporsional per qty). Global discount (`charges.discount`) sekarang selalu equal split — toggle `discountMode` dihapus dari UI
+- `ChargesPanel`: hapus toggle Diskon Rata / Diskon Per Item. Global discount selalu equal split
+- Balance enforcement: `ChargesPanel` auto-populate `charges.discount` jika `effectiveItemTotal + charges > totalAmount`. Alert inline muncul jika masih unbalanced. Tombol "Hitung Pembagian" disabled sampai semua per-item transaksi balanced
+- `AddItemForm`: submit diblokir jika belum pilih minimal 1 participant
+- Tombol "Hitung Pembagian" dipindah dari `fixed bottom-0` ke slot `footer` di `BillEditLayout`
+- `SettlementResult`: `computeBreakdown` menyertakan per-item discount dalam kalkulasi share per peserta
+
+---
+
+### v1.2.0 — 2026-04-27
+**Per-purchase charges**
+
+- DB migration: kolom `charges jsonb` nullable ditambah ke tabel `purchases`
+- `PurchaseCharges` interface: `{ tax, serviceCharge, gratuity, discount, discountMode }`
+- `ChargesPanel`: input pajak, service charge, gratuity, diskon dengan auto-save debounce 800ms. `Others (auto)` dikalkulasi live sebagai selisih `totalAmount` dan sum item + explicit charges
+- Algorithm extended: distribusi charges per purchase — tax/service/gratuity/others dibagi equal; discount dibagi equal atau per-item proporsional
+- Badge "Per Item" / "Bagi Rata" di `PurchaseHeader`
+- Edit transaksi inline di `PurchaseCard`
+- `app/bills/[id]/result/page.tsx`: halaman hasil pembagian dedicated
+
+Bug fixes (lanjutan v1.2.0):
+- Fix `others` floating point — semua kalkulasi intermediate pakai `r2 = Math.round(n * 100) / 100`
+- Fix `itemTotal` formula salah (`price × quantity` → `price × sum(consumer.quantity)`)
+- Fix harga total tampil float di `CurrencyInput`
+- Fix qty per orang tidak bisa dihapus — `qtys` state diganti dari `Record<string, number>` ke `Record<string, string>`
+
+---
+
+### v1.1.1 — 2026-04-25
+**Bug fixes**
+
+- Fix NaN di `CurrencyInput` saat edit item — `quantity` per consumer tidak di-serialize di response. Fix: tambah `quantity: c.quantity` di consumers mapping di GET route
+
+---
+
+### v1.1.0 — 2026-04-25
+**Per-consumer quantity + edit item**
+
+- DB migration: kolom `quantity integer NOT NULL DEFAULT 1` ditambah ke tabel `item_consumers`
+- `AddItemForm`: hapus global "Qty" item, ganti dengan qty input per consumer setelah centang
+- `ItemRow`: tampilkan qty per consumer (e.g. "Alice (2×), Bob")
+- Edit item inline: tombol ✏️ di `ItemRow` buka `AddItemForm` mode edit dengan data pre-filled. Submit via `PATCH /api/items/:id`
+- Semua qty input pakai `type="text"` + `inputMode="numeric"` (tidak ada arrow spinner)
+- `CurrencyInput`: format `1.000.000` saat blur, raw digits saat focus
+- Daily cron cleanup + 7-day share link expiry warning
+
+---
+
+### v1.0.0 — 2026-04-25
+**MVP production launch**
+
+- Full bill creation flow: buat tagihan → tambah peserta → tambah transaksi + item → assign consumer → hitung pembagian → share link
+- Dua split mode: **item-based** (assign item per orang) dan **equal** (bagi rata total)
+- Share via read-only link (`/s/[token]`) — server component + `ShareView` client wrapper
+- OG image + Twitter card di share page
+- Auto-calculate setelah setiap mutation
+- Optimistic UI di semua mutations (rollback on error)
+- `deviceId` (localStorage UUID) sebagai sole ownership check
+- Event logging infrastructure (fire-and-forget, tidak pernah diawait)
+- `app/icon.png` sebagai favicon (Next.js native)
+
+---
+
+### v0.0.1 — 2026-04-18
+**Initial commit**
+
+- Init Next.js + pnpm + TypeScript + Tailwind v4
+- Schema Neon + Drizzle: semua tabel (`bills`, `participants`, `purchases`, `items`, `item_consumers`, `debts`, `events`, `feature_flags`, `settlements`)
+- Semua services, API routes, split algorithm
+- Unit tests split algorithm (9 tests, Vitest)
 
 ---
 

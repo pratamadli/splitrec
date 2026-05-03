@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { db } from '@/src/db'
-import { bills, participants, purchases, items, itemConsumers, debts } from '@/src/db/schema'
+import { bills, participants, purchases, items, itemConsumers, debts, settlements } from '@/src/db/schema'
 import type { SplitMode } from '@/src/types/bill.types'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -33,6 +33,7 @@ export async function getBillById(id: string) {
       debts: {
         with: { from: true, to: true },
       },
+      settlements: true,
     },
   })
   return bill ?? null
@@ -58,9 +59,35 @@ export async function getBillByToken(token: string) {
       debts: {
         with: { from: true, to: true },
       },
+      settlements: true,
     },
   })
   return bill ?? null
+}
+
+export async function markSettlement(
+  billId: string,
+  fromParticipantId: string,
+  toParticipantId: string,
+  paid: boolean
+) {
+  await db.delete(settlements).where(
+    and(
+      eq(settlements.billId, billId),
+      eq(settlements.fromParticipantId, fromParticipantId),
+      eq(settlements.toParticipantId, toParticipantId)
+    )
+  )
+  if (paid) {
+    await db.insert(settlements).values({
+      billId,
+      fromParticipantId,
+      toParticipantId,
+      amount: '0',
+      status: 'paid',
+      paidAt: new Date(),
+    })
+  }
 }
 
 export async function updateBill(
