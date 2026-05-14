@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /s/
+Disallow: /bills/
+Disallow: /api/
+
+Sitemap: https://splitrec.vercel.app/sitemap.xml

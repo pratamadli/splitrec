@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getBillByToken } from '@/src/services/bill.service'
+import { logEvent } from '@/src/services/event.service'
 import { ShareView } from './ShareView'
 import type { BillData } from '@/src/types/bill.types'
 import type { Metadata } from 'next'
@@ -12,11 +13,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { token } = await params
   const raw = await getBillByToken(token)
   if (!raw) return {}
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://splitrec.vercel.app'
   const title = `${raw.title} — Splitrec`
   const description = `Lihat hasil pembagian tagihan "${raw.title}" di Splitrec.`
   return {
     title,
     description,
+    alternates: { canonical: `${base}/s/${token}` },
     openGraph: { title, description, images: [{ url: '/logo.png' }] },
     twitter: { card: 'summary_large_image', title, description, images: ['/logo.png'] },
   }
@@ -71,5 +74,25 @@ export default async function SharePage({ params }: PageProps) {
     })(),
   }
 
-  return <ShareView bill={bill} />
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://splitrec.vercel.app'
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: `${raw.title} — Splitrec`,
+    description: `Lihat hasil pembagian tagihan "${raw.title}" di Splitrec.`,
+    url: `${base}/s/${token}`,
+    isPartOf: { '@type': 'WebSite', name: 'Splitrec', url: base },
+  }
+
+  void logEvent(null, 'bill_viewed_shared', { billId: raw.id })
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <ShareView bill={bill} />
+    </>
+  )
 }
