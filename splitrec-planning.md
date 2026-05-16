@@ -2,7 +2,7 @@
 
 > **Tagline:** Split receipts, not friendships.
 > **Status:** Pre-development · MVP phase
-> **Last updated:** 2026-05-03
+> **Last updated:** 2026-05-14
 > **Sources:** Planning sessions + PRD (MVP) + Product Guide + Database schema review + Brand logo (splitrec_logo.png)
 
 ---
@@ -936,7 +936,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 14. Development Roadmap
 
-> **Status terakhir diupdate:** 2026-05-03
+> **Status terakhir diupdate:** 2026-05-14
 > **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4 · @vercel/analytics 2.0.1 · @vercel/speed-insights 2.0.0
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
 > **Favicon:** Sudah fix — `app/icon.png` (copy dari `logo-icon.png`), Next.js 13+ otomatis pakai sebagai favicon. `public/favicon.ico` lama tidak perlu dihapus.
@@ -1063,24 +1063,46 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ---
 
-### Phase 4 — Growth & monetization ⏳ BELUM DIMULAI
+### Phase 4 — Growth & monetization 🔄 IN PROGRESS
 
-- [ ] SEO: `generateMetadata()`, branded OG image per bill
-- [ ] Analytics dari tabel `events`
-- [ ] Aktifkan `<AdSlot />` dengan Google AdSense
-- [ ] Rewarded ads → flip `receipt_scan` feature flag
-- [ ] OCR receipt scan
-- [ ] Payment integration (aktifkan tabel `settlements`)
-- [ ] User accounts (tabel `users`)
+**Grup A — SEO ✅ SELESAI (v1.6.0 · 2026-05-14)**
+- [x] `public/robots.txt` — Allow `/`, `/s/`; Disallow `/bills/`, `/api/`
+- [x] `app/sitemap.ts` — static sitemap (landing page only; share pages bersifat ephemeral)
+- [x] JSON-LD `WebPage` schema di `app/s/[token]/page.tsx`
+- [x] Canonical URL (`alternates.canonical`) di share page `generateMetadata`
+
+**Grup B — Analytics internal ✅ SELESAI (v1.6.0 · 2026-05-14)**
+- [x] `app/api/events/route.ts` — endpoint POST untuk client-side event logging (allowlist: `share_link_copied`, `bill_viewed_shared`)
+- [x] Fix `ShareButton` — event `share_link_copied` sekarang benar-benar terkirim di kedua path: Web Share API dan clipboard fallback. Endpoint lama (`/api/bills/[id]/log-event`) yang tidak ada sudah diganti.
+- [x] `bill_viewed_shared` event di `app/s/[token]/page.tsx` (server component, fire-and-forget)
+- [x] `app/api/analytics/route.ts` — endpoint GET analytics (protected by `CRON_SECRET`). Response: `{ summary: { billsCreated, splitsCompleted, participantsAdded, sharesCopied, billsViewed, completionRate }, last30Days: [...] }`
+
+**Grup C — Google AdSense ⏳ BELUM DIMULAI**
+- [ ] Daftarkan domain ke Google AdSense, tunggu approval
+- [ ] Tambah AdSense script di `app/layout.tsx`
+- [ ] Implement `<AdSlot position="after_split_screen" />` — ganti `return null` dengan AdSense unit
+- [ ] Pasang AdSlot di `app/bills/[id]/result/page.tsx`
+
+**Grup D — OCR receipt scan ⏳ BELUM DIMULAI**
+- [ ] Image upload endpoint (`POST /api/bills/[id]/ocr`)
+- [ ] Integrasi Google Cloud Vision API atau Tesseract.js
+- [ ] UI upload struk di `PurchaseCard`
+- [ ] Auto-fill item dari hasil OCR
+
+**Rewarded ads (terpisah, belakangan)**
+- [ ] Flip `feature_flags.receipt_scan` setelah user menonton iklan
+
+> **Cara akses analytics:** `GET https://splitrec.vercel.app/api/analytics?secret=<CRON_SECRET>`
 
 ---
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. **[HARUS DILAKUKAN MANUAL]** Verifikasi end-to-end flow v1.5.0 di browser — `pnpm dev`, test: dark mode toggle, language toggle (ID/EN), buat tagihan → tambah peserta → tambah transaksi + item → hitung pembagian → isi rekening creditor → share link → buka di incognito → pastikan semua text ter-translate dan dark mode konsisten
-2. **[HARUS DILAKUKAN MANUAL]** Mobile audit (390px, 430px) — stepper tidak sticky, SettlementRow copy angka, nested button tidak lagi error di console
-3. **[DEPLOY]** Deploy ke production — `vercel --prod`
-4. Setelah mobile audit dan deploy: Phase 4 (SEO, analytics, AdSense)
+1. **[DEPLOY]** Deploy v2.0.0 ke production — `vercel --prod`
+2. **[VERIFY]** Cek `https://splitrec.vercel.app/sitemap.xml` dan `https://splitrec.vercel.app/robots.txt` accessible
+3. **[VERIFY]** Cek analytics endpoint: `GET /api/analytics?secret=<CRON_SECRET>`
+4. Daftar Google AdSense → tunggu approval → Grup C
+5. Setelah AdSense approved: Grup D (OCR)
 
 ---
 
@@ -1114,6 +1136,18 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 ---
 
 ## 17. Changelog
+
+### v1.6.0 — 2026-05-14
+**Phase 4: SEO + Analytics internal**
+
+- `public/robots.txt` — Allow `/`, `/s/`; Disallow `/bills/`, `/api/`
+- `app/sitemap.ts` — sitemap statis (landing page)
+- `app/s/[token]/page.tsx` — JSON-LD `WebPage` schema + canonical URL di `generateMetadata` + `bill_viewed_shared` event (fire-and-forget)
+- `app/api/events/route.ts` — endpoint POST untuk client-side event logging. Allowlist: `share_link_copied`, `bill_viewed_shared`
+- `ShareButton` — fix event `share_link_copied`: sebelumnya memanggil endpoint `/api/bills/[id]/log-event` yang tidak ada; sekarang memanggil `/api/events` di kedua path (Web Share + clipboard)
+- `app/api/analytics/route.ts` — endpoint GET analytics, protected by `CRON_SECRET`. Returns `{ summary, last30Days }` dengan completion rate dan daily breakdown per event
+
+---
 
 ### v1.5.0 — 2026-05-03
 **Dark mode, language switcher, UX fixes**

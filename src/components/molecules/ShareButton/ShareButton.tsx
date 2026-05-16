@@ -10,6 +10,15 @@ interface ShareButtonProps {
   createdAt: string
 }
 
+function logShareEvent(billId: string) {
+  const deviceId = typeof window !== 'undefined' ? localStorage.getItem('splitrec-device-id') : null
+  fetch('/api/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId, eventName: 'share_link_copied', metadata: { billId } }),
+  }).catch(() => {})
+}
+
 export function ShareButton({ shareToken, billId, createdAt }: ShareButtonProps) {
   const { t, lang } = useLang()
   const [copied, setCopied] = useState(false)
@@ -21,17 +30,14 @@ export function ShareButton({ shareToken, billId, createdAt }: ShareButtonProps)
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Splitrec', url })
-        fetch('/api/bills/' + billId + '/log-event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'share_link_copied' }),
-        }).catch(() => {})
+        logShareEvent(billId)
         return
       } catch {
         // fall through to clipboard
       }
     }
     await navigator.clipboard.writeText(url)
+    logShareEvent(billId)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
