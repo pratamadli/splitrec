@@ -18,8 +18,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('splitrec-theme') as Theme | null
     if (saved === 'dark' || saved === 'light') {
       setTheme(saved)
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark')
     }
   }, [])
 

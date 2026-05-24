@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="id" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <head>
         {/* Prevent flash of unstyled content for dark mode */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('splitrec-theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');}catch(e){}})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem('splitrec-theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}})()` }} />
       </head>
       <body className="min-h-full bg-white dark:bg-gray-950 font-sans antialiased">
         <ThemeProvider>

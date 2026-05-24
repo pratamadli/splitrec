@@ -15,7 +15,7 @@ import type { ParticipantData, PurchaseCharges } from '@/src/types/bill.types'
 interface OcrItem {
   name: string
   price: number
-  consumerIds: string[]
+  consumers: { participantId: string; quantity: number }[]
 }
 
 export interface OcrSubmitData {
@@ -61,7 +61,7 @@ export function OcrSheet({ mode, participants, onSubmit, onCancel }: OcrSheetPro
   const [paidBy, setPaidBy] = useState(participants[0]?.id ?? '')
   const [submitting, setSubmitting] = useState(false)
 
-  const allIds = participants.map((p) => p.id)
+  const blankConsumers = () => participants.map((p) => ({ participantId: p.id, quantity: 0 }))
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -74,14 +74,15 @@ export function OcrSheet({ mode, participants, onSubmit, onCancel }: OcrSheetPro
     try {
       const text = await recognize(file)
       const parsed = parseReceipt(text)
-      setItems(parsed.items.map((item) => ({ ...item, consumerIds: allIds })))
+      setItems(parsed.items.map((item) => ({ ...item, consumers: blankConsumers() })))
       setCharges(parsed.charges)
       setPhase('review')
     } catch {
       setOcrError(t('ocr.error'))
       setPhase('upload')
     }
-  }, [recognize, allIds, t])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recognize, participants, t])
 
   const updateItemField = (idx: number, field: 'name', value: string) =>
     setItems((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)))
@@ -89,21 +90,21 @@ export function OcrSheet({ mode, participants, onSubmit, onCancel }: OcrSheetPro
   const updateItemPrice = (idx: number, raw: string) =>
     setItems((prev) => prev.map((item, i) => (i === idx ? { ...item, price: parseNum(raw) } : item)))
 
-  const toggleConsumer = (itemIdx: number, participantId: string) =>
+  const updateConsumerQty = (itemIdx: number, participantId: string, raw: string) => {
+    const qty = Math.max(0, parseInt(raw.replace(/\D/g, '') || '0', 10))
     setItems((prev) =>
-      prev.map((item, i) => {
-        if (i !== itemIdx) return item
-        const ids = item.consumerIds.includes(participantId)
-          ? item.consumerIds.filter((id) => id !== participantId)
-          : [...item.consumerIds, participantId]
-        return { ...item, consumerIds: ids }
-      })
+      prev.map((item, i) =>
+        i !== itemIdx
+          ? item
+          : { ...item, consumers: item.consumers.map((c) => c.participantId === participantId ? { ...c, quantity: qty } : c) }
+      )
     )
+  }
 
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx))
 
   const addBlankItem = () =>
-    setItems((prev) => [...prev, { name: '', price: 0, consumerIds: allIds }])
+    setItems((prev) => [...prev, { name: '', price: 0, consumers: blankConsumers() }])
 
   const validItems = items.filter((i) => i.name.trim() && i.price > 0)
   const itemsTotal = r2(validItems.reduce((s, i) => s + i.price, 0))
@@ -112,7 +113,7 @@ export function OcrSheet({ mode, participants, onSubmit, onCancel }: OcrSheetPro
   const hasCharges = charges.tax > 0 || charges.serviceCharge > 0 || charges.gratuity > 0 || charges.discount > 0
 
   const allConsumersAssigned =
-    mode === 'equal' || validItems.every((i) => i.consumerIds.length > 0)
+    mode === 'equal' || validItems.every((i) => i.consumers.some((c) => c.quantity > 0))
   const canSubmit = title.trim() !== '' && grandTotal > 0 && allConsumersAssigned
 
   const handleSubmit = async () => {
@@ -134,7 +135,7 @@ export function OcrSheet({ mode, participants, onSubmit, onCancel }: OcrSheetPro
           items: validItems.map((item) => ({
             name: item.name,
             price: item.price,
-            consumers: item.consumerIds.map((id) => ({ participantId: id, quantity: 1 })),
+            consumers: item.consumers.filter((c) => c.quantity > 0),
           })),
         })
       }
@@ -299,26 +300,52 @@ export function OcrSheet({ mode, participants, onSubmit, onCancel }: OcrSheetPro
               </button>
             </div>
 
-            {/* Consumer pills — per-item mode only */}
+            {/* Consumer selection + qty — per-item mode only */}
             {mode === 'item' && (
-              <div className="flex flex-wrap gap-1.5">
-                {participants.map((p) => {
-                  const selected = item.consumerIds.includes(p.id)
+              <div className="flex flex-wrap gap-1.5 items-center">
+                {/* Only show selected participants */}
+                {item.consumers.filter((c) => c.quantity > 0).map((c) => {
+                  const p = participants.find((p) => p.id === c.participantId)
+                  if (!p) return null
                   return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => toggleConsumer(idx, p.id)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                        selected
-                          ? 'bg-brand-blue text-white border-brand-blue'
-                          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-brand-blue/50'
-                      }`}
-                    >
-                      {p.name}
-                    </button>
+                    <div key={c.participantId} className="flex items-center rounded-full border border-brand-blue bg-brand-blue text-white text-xs">
+                      <span className="pl-2.5 pr-1 py-1">{p.name}</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={String(c.quantity)}
+                        onChange={(e) => updateConsumerQty(idx, c.participantId, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-7 text-center bg-white/20 border-l border-white/30 py-1 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateConsumerQty(idx, c.participantId, '0')}
+                        className="px-1.5 py-1 hover:bg-white/20 rounded-r-full transition-colors"
+                        aria-label="Hapus"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   )
                 })}
+
+                {/* Dropdown to add unselected participant */}
+                {item.consumers.some((c) => c.quantity === 0) && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) updateConsumerQty(idx, e.target.value, '1')
+                    }}
+                    className="text-xs border border-dashed border-brand-blue/50 rounded-full px-2.5 py-1 bg-white dark:bg-gray-800 text-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue cursor-pointer"
+                  >
+                    <option value="">{t('ocr.add_consumer')}</option>
+                    {item.consumers.filter((c) => c.quantity === 0).map((c) => {
+                      const p = participants.find((p) => p.id === c.participantId)
+                      return p ? <option key={p.id} value={p.id}>{p.name}</option> : null
+                    })}
+                  </select>
+                )}
               </div>
             )}
           </div>
