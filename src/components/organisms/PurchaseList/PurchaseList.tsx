@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { PurchaseCard } from '@/src/components/organisms/PurchaseCard'
+import { OcrSheet } from '@/src/components/molecules/OcrSheet'
 import { Button } from '@/src/components/atoms/Button'
 import { Input } from '@/src/components/atoms/Input'
 import { CurrencyInput } from '@/src/components/atoms/CurrencyInput'
@@ -9,6 +10,7 @@ import { EmptyState } from '@/src/components/atoms/EmptyState'
 import { cn } from '@/src/lib/cn'
 import { useLang } from '@/src/contexts/LanguageContext'
 import type { BillData } from '@/src/types/bill.types'
+import type { OcrSubmitData } from '@/src/components/molecules/OcrSheet'
 
 type ItemConsumer = { participantId: string; quantity: number }
 type ItemFormData = { name: string; price: number; note: string | null; discount: number; consumers: ItemConsumer[] }
@@ -24,7 +26,7 @@ interface PurchaseListProps {
   onDeleteItem: (itemId: string) => Promise<void>
 }
 
-type AddStep = 'closed' | 'choose' | 'form'
+type AddStep = 'closed' | 'choose' | 'input_method' | 'form' | 'ocr'
 type AddMode = 'equal' | 'item'
 
 export function PurchaseList({
@@ -55,7 +57,27 @@ export function PurchaseList({
 
   const handleChooseMode = (mode: AddMode) => {
     setAddMode(mode)
-    setAddStep('form')
+    setAddStep('input_method')
+  }
+
+  const handleChooseInputMethod = (method: 'manual' | 'ocr') => {
+    setAddStep(method === 'ocr' ? 'ocr' : 'form')
+  }
+
+  const handleOcrSubmit = async (data: OcrSubmitData) => {
+    const newId = await onAddPurchase({ title: data.title, paidBy: data.paidBy, totalAmount: data.totalAmount })
+    if (!newId) return
+    if (addMode === 'item' && data.items.length > 0) {
+      for (const item of data.items) {
+        await onAddItem(newId, { name: item.name, price: item.price, note: null, discount: 0, consumers: item.consumers })
+      }
+      if (data.charges) {
+        await onEditPurchase(newId, { charges: data.charges })
+      }
+    }
+    setAddStep('closed')
+    setTitle('')
+    setTotalAmount(0)
   }
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -139,6 +161,38 @@ export function PurchaseList({
               {t('common.cancel')}
             </Button>
           </div>
+        ) : addStep === 'input_method' ? (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('purchases.choose_input')}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleChooseInputMethod('manual')}
+                className="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-brand-blue/20 bg-white dark:bg-gray-900 text-center hover:border-brand-blue transition-colors"
+              >
+                <span className="text-2xl">✏️</span>
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('purchases.input_manual')}</span>
+                <span className="text-xs text-brand-gray">{t('purchases.input_manual_desc')}</span>
+              </button>
+              <button
+                onClick={() => handleChooseInputMethod('ocr')}
+                className="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-brand-blue/20 bg-white dark:bg-gray-900 text-center hover:border-brand-blue transition-colors"
+              >
+                <span className="text-2xl">📷</span>
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('purchases.scan_receipt')}</span>
+                <span className="text-xs text-brand-gray">{t('purchases.scan_receipt_desc')}</span>
+              </button>
+            </div>
+            <Button type="button" variant="ghost" onClick={handleCancel} className="w-full">
+              {t('common.cancel')}
+            </Button>
+          </div>
+        ) : addStep === 'ocr' ? (
+          <OcrSheet
+            mode={addMode}
+            participants={bill.participants}
+            onSubmit={handleOcrSubmit}
+            onCancel={handleCancel}
+          />
         ) : addStep === 'form' ? (
           <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-gray-50 dark:bg-gray-800 rounded-2xl p-4">
             {addMode === 'item' && (

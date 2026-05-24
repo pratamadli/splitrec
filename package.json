@@ -1,6 +1,6 @@
 {
   "name": "splitrec",
-  "version": "1.6.1",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -27,6 +27,7 @@
     "react-dom": "19.2.4",
     "swr": "^2.4.1",
     "tailwind-merge": "^3.5.0",
+    "tesseract.js": "^7.0.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
