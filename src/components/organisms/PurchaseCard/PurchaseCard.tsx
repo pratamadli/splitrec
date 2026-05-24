@@ -81,7 +81,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
   const itemTotal = computeItemTotal(purchase.items)
   const others = Math.max(
     0,
-    r2(purchase.totalAmount - charges.discount - itemTotal - charges.tax - charges.serviceCharge - charges.gratuity)
+    r2(purchase.totalAmount + charges.discount - itemTotal - charges.tax - charges.serviceCharge - charges.gratuity)
   )
 
   const scheduleAutoSave = useCallback((next: PurchaseCharges) => {
@@ -111,7 +111,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
     const savedItemTotal = computeItemTotal(purchase.items)
     const savedOthers = Math.max(
       0,
-      r2(purchase.totalAmount - savedCharges.discount - savedItemTotal - savedCharges.tax - savedCharges.serviceCharge - savedCharges.gratuity)
+      r2(purchase.totalAmount + savedCharges.discount - savedItemTotal - savedCharges.tax - savedCharges.serviceCharge - savedCharges.gratuity)
     )
     return (
       <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-gray-50/50 dark:bg-gray-800/30 flex flex-col gap-1">
@@ -143,7 +143,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
 
         <CurrencyInput label={t('charges.discount')} value={charges.discount} onChange={(v) => update('discount', v)} />
 
-        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity + charges.discount) > r2(purchase.totalAmount) + 0.01 && (
+        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount) > r2(purchase.totalAmount) + 0.01 && (
           <p className="text-xs text-red-500 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 px-3 py-2">
             {t('charges.unbalanced')}
           </p>

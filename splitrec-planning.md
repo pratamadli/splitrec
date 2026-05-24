@@ -1137,6 +1137,14 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 17. Changelog
 
+### v1.6.1 — 2026-05-17
+**Bug fixes: discount unbalanced**
+
+- **`ChargesPanel` `others` formula salah** — `others` dihitung sebagai `totalAmount - discount - items - tax - sc - gratuity`. Bug: `discount` harusnya dijumlahkan karena discount mengurangi kewajiban bayar, bukan menambah. Fix: `totalAmount + discount - items - tax - sc - gratuity`. Berlaku di owner view dan viewer mode.
+- **`ChargesPanel` unbalanced warning tidak akurat** — Kondisi `itemTotal + tax + sc + gratuity + discount > totalAmount` keliru menjumlahkan `discount`. Efek: warning muncul padahal transaksi sudah balance (contoh: items=131.000, service=13.000, discount=41.000, total=103.000 → warning salah muncul). Fix: ganti `+ discount` menjadi `- discount`.
+
+---
+
 ### v1.6.0 — 2026-05-14
 **Phase 4: SEO + Analytics internal**
 
