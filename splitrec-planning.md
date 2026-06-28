@@ -2,7 +2,7 @@
 
 > **Tagline:** Split receipts, not friendships.
 > **Status:** Pre-development · MVP phase
-> **Last updated:** 2026-05-15
+> **Last updated:** 2026-05-14
 > **Sources:** Planning sessions + PRD (MVP) + Product Guide + Database schema review + Brand logo (splitrec_logo.png)
 
 ---
@@ -1083,13 +1083,11 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 - [ ] Implement `<AdSlot position="after_split_screen" />` — ganti `return null` dengan AdSense unit
 - [ ] Pasang AdSlot di `app/bills/[id]/result/page.tsx`
 
-**Grup D — OCR receipt scan ✅ SELESAI (v2.0.0 · 2026-05-15 · branch: feature/ocr)**
-- [x] `tesseract.js` diinstall (client-side, 100% gratis, no API key)
-- [x] `src/lib/receipt-parser.ts` — pure parser: deteksi item, pajak (PB1/PPN), service charge, gratuity, diskon dari raw OCR text. Skip baris total/subtotal/footer otomatis.
-- [x] `src/hooks/useOcr.ts` — Tesseract.js wrapper dengan progress tracking. Dynamic import (hindari SSR bundle).
-- [x] `src/components/molecules/OcrSheet/` — komponen review 3-fase: upload → processing → review. Review: edit nama+harga item, assign konsumer per item (per-item mode) atau konfirmasi total (bagi rata mode). Charges terdeteksi auto-populate dan editable.
-- [x] `src/lib/i18n.ts` — keys baru: `ocr.*`, `purchases.choose_input`, `purchases.input_method`, `purchases.scan_receipt` (ID + EN)
-- [x] `PurchaseList` — step baru `input_method` (setelah choose mode): [✏️ Input Manual] vs [📷 Scan Struk]. Step `ocr` render `OcrSheet`. `handleOcrSubmit` buat purchase + items + charges secara sequential.
+**Grup D — OCR receipt scan ⏳ BELUM DIMULAI**
+- [ ] Image upload endpoint (`POST /api/bills/[id]/ocr`)
+- [ ] Integrasi Google Cloud Vision API atau Tesseract.js
+- [ ] UI upload struk di `PurchaseCard`
+- [ ] Auto-fill item dari hasil OCR
 
 **Rewarded ads (terpisah, belakangan)**
 - [ ] Flip `feature_flags.receipt_scan` setelah user menonton iklan
@@ -1100,11 +1098,11 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ### Yang perlu diselesaikan berikutnya (prioritas)
 
-1. **[MERGE + DEPLOY]** Merge `feature/ocr` → `development` → `main`, deploy ke production `vercel --prod`
+1. **[DEPLOY]** Deploy v2.0.0 ke production — `vercel --prod`
 2. **[VERIFY]** Cek `https://splitrec.vercel.app/sitemap.xml` dan `https://splitrec.vercel.app/robots.txt` accessible
 3. **[VERIFY]** Cek analytics endpoint: `GET /api/analytics?secret=<CRON_SECRET>`
-4. **[TEST MANUAL]** Test OCR flow di mobile: bagi rata + scan struk, per item + scan struk, charges detection, edit item di review, submit
-5. Daftar Google AdSense → tunggu approval → Grup C
+4. Daftar Google AdSense → tunggu approval → Grup C
+5. Setelah AdSense approved: Grup D (OCR)
 
 ---
 
@@ -1139,18 +1137,6 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 17. Changelog
 
-### v2.0.0 — 2026-05-15
-**OCR receipt scan (Tesseract.js, gratis, client-side)**
-
-- `tesseract.js` — OCR berjalan di browser, tidak ada API key atau biaya
-- `src/lib/receipt-parser.ts` — parser murni: ekstrak item + harga dari raw OCR text, deteksi PB1/pajak/service charge/gratuity/diskon, skip baris total/subtotal/footer secara otomatis
-- `src/hooks/useOcr.ts` — hook dengan progress bar (0–100%), dynamic import untuk hindari SSR bundle
-- `src/components/molecules/OcrSheet/` — flow 3 fase:
-  - **Upload**: drag/tap area + file input dengan `capture="environment"` (buka kamera langsung di HP)
-  - **Processing**: spinner + progress bar real-time
-  - **Review**: edit nama & harga per item, assign konsumer per item (per-item mode) atau lihat total saja (bagi rata mode), charges terdeteksi auto-populate dan bisa diedit, total dihitung otomatis
-- `PurchaseList` — langkah baru `input_method` setelah pilih mode: [✏️ Input Manual] vs [📷 Scan Struk]
-- i18n: keys `ocr.*` dan `purchases.scan_receipt` ditambah ke ID + EN
 ### v1.6.1 — 2026-05-17
 **Bug fixes: discount unbalanced**
 
