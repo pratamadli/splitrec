@@ -119,7 +119,7 @@ export default function BillTransaksiPage({ params }: PageProps) {
     if (purchase.items.length === 0) return true
     const charges = purchase.charges ?? { tax: 0, serviceCharge: 0, gratuity: 0, discount: 0 }
     const net = r2(computeItemTotal(purchase.items) + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount)
-    return net <= r2(purchase.totalAmount) + 0.01
+    return net <= r2(purchase.totalAmount) + 1
   })
 
   return (

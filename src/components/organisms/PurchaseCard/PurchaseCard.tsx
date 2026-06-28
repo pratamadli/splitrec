@@ -143,7 +143,7 @@ function ChargesPanel({ purchase, isOwner, onSave }: ChargesPanelProps) {
 
         <CurrencyInput label={t('charges.discount')} value={charges.discount} onChange={(v) => update('discount', v)} />
 
-        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount) > r2(purchase.totalAmount) + 0.01 && (
+        {others === 0 && r2(itemTotal + charges.tax + charges.serviceCharge + charges.gratuity - charges.discount) > r2(purchase.totalAmount) + 1 && (
           <p className="text-xs text-red-500 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 px-3 py-2">
             {t('charges.unbalanced')}
           </p>
