@@ -936,7 +936,7 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 
 ## 14. Development Roadmap
 
-> **Status terakhir diupdate:** 2026-05-14
+> **Status terakhir diupdate:** 2026-06-28
 > **Stack aktual:** Next.js 16.2.4 · Tailwind v4 · Drizzle ORM 0.45.2 · @neondatabase/serverless 1.1.0 · Vitest 4.1.4 · @vercel/analytics 2.0.1 · @vercel/speed-insights 2.0.0
 > **Catatan:** `tailwind.config.ts` tidak dipakai di Tailwind v4 — brand colors didefinisikan via `@theme` di `globals.css`. `app/` ada di root (bukan `src/app/`). Kode backend di `src/`. Share page pakai pola server component + client wrapper (`ShareView.tsx`) karena Next.js tidak izinkan passing fungsi dari server ke client component.
 > **Favicon:** Sudah fix — `app/icon.png` (copy dari `logo-icon.png`), Next.js 13+ otomatis pakai sebagai favicon. `public/favicon.ico` lama tidak perlu dihapus.
@@ -1136,6 +1136,14 @@ Present in schema with `status: 'pending' | 'paid'`. Unused in MVP. Activated in
 ---
 
 ## 17. Changelog
+
+### v1.6.2 — 2026-06-28
+**Bug fix: balance check false positive on non-divisible prices**
+
+- **`allPerItemPurchasesBalanced` tolerance terlalu ketat** — Ketika harga item tidak habis dibagi jumlah konsumer (mis. Rp 50.000 ÷ 7 orang = Rp 7.142,857...), DB menyimpan `price` sebagai `numeric(15,2)` → `7142.86`. Saat `computeItemTotal` menjumlahkan per konsumer: `7142.86 × 7 = 50000.02`, yang melampaui toleransi `+0.01` → tombol "Hitung Pembagian" ter-disable meski data sudah benar. Fix: naikkan toleransi dari `0.01` ke `1` IDR di `transaksi/page.tsx` (button disable check) dan `PurchaseCard.tsx` (ChargesPanel warning). Toleransi 1 IDR wajar karena IDR tidak punya denominasi sub-rupiah dan error ini murni dari pembulatan storage.
+- **Revert OCR feature** — Branch `feature/ocr` (PR #14) di-revert. `OcrSheet` component, `receipt-parser`, `useOcr` hook, dan semua i18n key terkait OCR dihapus. Dependensi Tesseract.js dilepas dari `package.json`. Grup D tetap sebagai BELUM DIMULAI.
+
+---
 
 ### v1.6.1 — 2026-05-17
 **Bug fixes: discount unbalanced**
